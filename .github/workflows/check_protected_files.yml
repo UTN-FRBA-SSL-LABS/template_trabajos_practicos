@@ -32,6 +32,10 @@ jobs:
           ".github/PULL_REQUEST_TEMPLATE.md"
           ".clang-format"
           ".pre-commit-config.yaml"
+          "TP1/tests/"
+          "TP2/tests/"
+          "TP3/tests/"
+          "TP4/tests/"
         )
 
         CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
