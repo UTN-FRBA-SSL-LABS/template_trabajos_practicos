@@ -1,0 +1,23 @@
+* Listado de variables declaradas (tipo de dato y numero de linea):
+-
+
+* Listado de funciones declaradas o definidas:
+countdown: declaracion, input: int n, retorna: void, linea 1
+classify: definicion, input: int x, retorna: int, linea 3
+countdown: definicion, input: int n, retorna: void, linea 14
+
+* Listado de sentencias indicando tipo, numero de linea y de columna:
+switch: linea 4, columna 5
+case: linea 5, columna 9
+return: linea 6, columna 13
+case: linea 7, columna 9
+return: linea 8, columna 13
+default: linea 9, columna 9
+return: linea 10, columna 13
+do/while: linea 15, columna 5
+
+* Listado de estructuras sintacticas no reconocidas:
+-
+
+* Listado de cadenas no reconocidas:
+-

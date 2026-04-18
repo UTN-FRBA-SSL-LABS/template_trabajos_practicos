@@ -25,9 +25,8 @@
 # IntelliJ files
 .idea/
 
-# Test files
-tests/
-tests/*
+# Test output folders (binaries/artifacts only, not test cases)
+tests/output/actual/
 
 # Makefile
 #GNUmakefile

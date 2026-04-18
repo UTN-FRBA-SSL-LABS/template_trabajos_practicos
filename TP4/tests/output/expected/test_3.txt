@@ -1,0 +1,19 @@
+* Listado de variables declaradas (tipo de dato y numero de linea):
+result: int, linea 4, columna 9
+x: int, linea 9, columna 9
+y: int, linea 10, columna 9
+
+* Listado de funciones declaradas y definidas:
+process: declaracion, input: int data, retorna: int, linea 1
+compute: definicion, input: int val, retorna: int, linea 3
+main: definicion, input: void, retorna: int, linea 8
+
+* Listado de errores semanticos:
+5:5: Incompatibilidad de tipos al retornar el tipo 'void' pero se esperaba 'int'
+10:13: Funcion 'unknown' sin declarar
+
+* Listado de errores sintacticos:
+-
+
+* Listado de errores lexicos:
+-

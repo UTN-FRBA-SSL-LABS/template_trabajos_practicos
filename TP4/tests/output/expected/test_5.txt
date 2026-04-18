@@ -1,0 +1,18 @@
+* Listado de variables declaradas (tipo de dato y numero de linea):
+x: int, linea 10, columna 9
+y: int, linea 11, columna 9
+
+* Listado de funciones declaradas y definidas:
+double_val: definicion, input: int n, retorna: int, linea 1
+main: definicion, input: void, retorna: int, linea 9
+
+* Listado de errores semanticos:
+5:5: Redefinicion de 'double_val'
+Nota: la definicion previa de 'double_val' es de tipo 'int(int)': 1:5
+11:15: Operandos invalidos del operador binario * (tienen 'int' y 'char *')
+
+* Listado de errores sintacticos:
+"x = x + 1": linea 12
+
+* Listado de errores lexicos:
+@err: linea 13, columna 5

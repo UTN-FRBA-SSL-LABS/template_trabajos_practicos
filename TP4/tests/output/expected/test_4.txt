@@ -1,0 +1,20 @@
+* Listado de variables declaradas (tipo de dato y numero de linea):
+limit: const int, linea 6, columna 15
+result: int, linea 7, columna 9
+
+* Listado de funciones declaradas y definidas:
+square: definicion, input: int n, retorna: int, linea 1
+main: definicion, input: void, retorna: int, linea 5
+
+* Listado de errores semanticos:
+7:18: Demasiados argumentos para la funcion 'square'
+Nota: declarado aqui: 1:5
+8:14: Insuficientes argumentos para la funcion 'square'
+Nota: declarado aqui: 1:5
+9:11: Asignacion de la variable de solo lectura 'limit'
+
+* Listado de errores sintacticos:
+-
+
+* Listado de errores lexicos:
+-

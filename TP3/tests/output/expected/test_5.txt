@@ -1,0 +1,19 @@
+* Listado de variables declaradas (tipo de dato y numero de linea):
+result: int, linea 8
+
+* Listado de funciones declaradas o definidas:
+square: definicion, input: int n, retorna: int, linea 1
+main: definicion, input: void, retorna: int, linea 7
+
+* Listado de sentencias indicando tipo, numero de linea y de columna:
+return: linea 2, columna 5
+if: linea 9, columna 5
+return: linea 10, columna 9
+return: linea 12, columna 5
+
+* Listado de estructuras sintacticas no reconocidas:
+"x = 10;": linea 5
+"y += 2;": linea 15
+
+* Listado de cadenas no reconocidas:
+-

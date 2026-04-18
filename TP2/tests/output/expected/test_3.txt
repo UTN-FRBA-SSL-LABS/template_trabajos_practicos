@@ -1,31 +1,19 @@
 * Listado de identificadores encontrados:
-count: aparece 2 veces
-main: aparece 1 vez
-n: aparece 2 veces
-result: aparece 2 veces
-scale: aparece 2 veces
-value: aparece 1 vez
-x: aparece 1 vez
+limit: aparece 2 veces
+n: aparece 6 veces
 
 * Listado de literales cadena encontrados:
 -
 
 * Listado de palabras reservadas (clase de almacenamiento):
--
+static: linea 1, columna 1
 
 * Listado de palabras reservadas (especificadores de tipo):
-double: linea 1, columna 1
-long: linea 1, columna 14
-double: linea 2, columna 5
-int: linea 6, columna 1
-void: linea 6, columna 10
-unsigned: linea 7, columna 5
-int: linea 7, columna 14
-float: linea 8, columna 5
-double: linea 9, columna 5
+int: linea 1, columna 8
+int: linea 2, columna 7
 
 * Listado de palabras reservadas (calificadores de tipo):
--
+const: linea 2, columna 1
 
 * Listado de palabras reservadas (struct o union):
 -
@@ -37,21 +25,23 @@ double: linea 9, columna 5
 -
 
 * Listado de palabras reservadas (seleccion):
--
+if: linea 4, columna 5
 
 * Listado de palabras reservadas (iteracion):
--
+for: linea 3, columna 1
 
 * Listado de palabras reservadas (salto):
-return: linea 3, columna 5
-return: linea 10, columna 5
+break: linea 5, columna 9
+continue: linea 7, columna 5
 
 * Listado de palabras reservadas (unario):
 -
 
 * Listado de constantes enteras decimales:
-3: valor 3
-Total acumulado de sumar todas las constantes decimales: 3
+5: valor 5
+2: valor 2
+1: valor 1
+Total acumulado de sumar todas las constantes decimales: 8
 
 * Listado de constantes enteras hexadecimales:
 -
@@ -60,19 +50,20 @@ Total acumulado de sumar todas las constantes decimales: 3
 0: valor entero decimal 0
 
 * Listado de constantes reales:
-2.0: parte entera 2.000000, mantisa 0.000000
-1.5: parte entera 1.000000, mantisa 0.500000
+-
 
 * Listado de constantes caracter enumerados:
 -
 
 * Listado de operadores/caracteres de puntuación:
-(: aparece 3 veces
-): aparece 3 veces
-{: aparece 2 veces
-=: aparece 4 veces
-*: aparece 1 vez
 ;: aparece 6 veces
+=: aparece 3 veces
+(: aparece 2 veces
+<: aparece 1 vez
++: aparece 1 vez
+): aparece 2 veces
+{: aparece 2 veces
+>: aparece 1 vez
 }: aparece 2 veces
 
 * Listado de cadenas no reconocidas:

@@ -1,11 +1,15 @@
 * Listado de identificadores encontrados:
-count: aparece 2 veces
-main: aparece 1 vez
-n: aparece 2 veces
-result: aparece 2 veces
-scale: aparece 2 veces
-value: aparece 1 vez
+a: aparece 1 vez
+b: aparece 1 vez
+blue: aparece 1 vez
+c: aparece 1 vez
+color: aparece 1 vez
+d: aparece 1 vez
+green: aparece 1 vez
+point: aparece 1 vez
+red: aparece 1 vez
 x: aparece 1 vez
+y: aparece 1 vez
 
 * Listado de literales cadena encontrados:
 -
@@ -14,24 +18,21 @@ x: aparece 1 vez
 -
 
 * Listado de palabras reservadas (especificadores de tipo):
-double: linea 1, columna 1
-long: linea 1, columna 14
-double: linea 2, columna 5
-int: linea 6, columna 1
-void: linea 6, columna 10
-unsigned: linea 7, columna 5
-int: linea 7, columna 14
-float: linea 8, columna 5
-double: linea 9, columna 5
+int: linea 1, columna 16
+int: linea 1, columna 23
+char: linea 3, columna 1
+char: linea 4, columna 1
+char: linea 5, columna 1
+char: linea 6, columna 1
 
 * Listado de palabras reservadas (calificadores de tipo):
 -
 
 * Listado de palabras reservadas (struct o union):
--
+struct: linea 1, columna 1
 
 * Listado de palabras reservadas (enumeracion):
--
+enum: linea 2, columna 1
 
 * Listado de palabras reservadas (etiqueta):
 -
@@ -43,37 +44,35 @@ double: linea 9, columna 5
 -
 
 * Listado de palabras reservadas (salto):
-return: linea 3, columna 5
-return: linea 10, columna 5
+-
 
 * Listado de palabras reservadas (unario):
 -
 
 * Listado de constantes enteras decimales:
-3: valor 3
-Total acumulado de sumar todas las constantes decimales: 3
+-
 
 * Listado de constantes enteras hexadecimales:
 -
 
 * Listado de constantes enteras octales:
-0: valor entero decimal 0
-
-* Listado de constantes reales:
-2.0: parte entera 2.000000, mantisa 0.000000
-1.5: parte entera 1.000000, mantisa 0.500000
-
-* Listado de constantes caracter enumerados:
 -
 
+* Listado de constantes reales:
+-
+
+* Listado de constantes caracter enumerados:
+1) 'A'
+2) '\n'
+3) '\07'
+4) '\xF'
+
 * Listado de operadores/caracteres de puntuación:
-(: aparece 3 veces
-): aparece 3 veces
 {: aparece 2 veces
-=: aparece 4 veces
-*: aparece 1 vez
-;: aparece 6 veces
+;: aparece 7 veces
 }: aparece 2 veces
+,: aparece 2 veces
+=: aparece 4 veces
 
 * Listado de cadenas no reconocidas:
 -

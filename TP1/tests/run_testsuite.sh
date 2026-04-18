@@ -100,6 +100,51 @@ for input_path in "${this_dir}"/input/test_*"${input_extension}"; do
     # Sumarizar para promedio
     total_percentage=$(awk -v a="${total_percentage}" -v b="${percentage_matching}" 'BEGIN {print a + b}')
 
+    # ── Estadísticas por categoría ──────────────────────────────────────────────
+    # Para cada línea del output esperado (formato "TOKEN CLASIFICACION") se
+    # determina la categoría extrayendo todo lo que sigue al primer campo.
+    # Esto maneja correctamente categorías de varias palabras como "NO RECONOCIDA".
+    # Luego se busca en el output real si existe exactamente esa misma línea completa.
+    # Es informativo: no afecta el porcentaje de pass/fail.
+    printf "\n${Blue}Estadísticas por categoría:${Color_Off}\n"
+    awk -v Green="${Green}" -v Red="${Red}" -v Yellow="${Yellow}" -v Off="${Color_Off}" '
+        # Primera pasada: leer el output esperado
+        # Para cada línea guardamos la línea completa y su categoría
+        NR==FNR {
+            exp_line[NR] = $0
+            cat = $0
+            sub(/^[^[:space:]]+[[:space:]]+/, "", cat)   # elimina el token del inicio
+            exp_cat[NR]  = cat
+            exp_total    = NR
+            next
+        }
+        # Segunda pasada: leer el output real y construir un conjunto de líneas presentes
+        { act_lines[$0]++ }
+        END {
+            for (i = 1; i <= exp_total; i++) {
+                c = exp_cat[i]
+                cat_total[c]++
+                if (act_lines[exp_line[i]] > 0) {
+                    cat_correct[c]++
+                    act_lines[exp_line[i]]--   # consumir para no contar duplicados
+                }
+            }
+            cats[1] = "DECIMAL"
+            cats[2] = "OCTAL"
+            cats[3] = "HEXADECIMAL"
+            cats[4] = "NO RECONOCIDA"
+            for (i = 1; i <= 4; i++) {
+                c = cats[i]
+                if (cat_total[c] > 0) {
+                    ok  = cat_correct[c]+0
+                    tot = cat_total[c]
+                    color = (ok == tot) ? Green : ((ok == 0) ? Red : Yellow)
+                    printf "  %s%-20s%s %d/%d correctos\n", color, c, Off, ok, tot
+                }
+            }
+        }
+    ' "${this_dir}/output/expected/${test_name}_clean.txt" "${this_dir}/output/${test_name}_clean.txt"
+
     # Determinar si el test es pasado o no basado en el porcentaje de coincidencia
     if awk -v a="${percentage_matching}" -v b="${min_percentage_matching_per_test}" 'BEGIN {exit !(a >= b)}'; then
         passed_tests=$(expr "${passed_tests}" + 1)
@@ -121,7 +166,7 @@ for input_path in "${this_dir}"/input/test_*"${input_extension}"; do
 		printf "git --no-pager diff --no-index --unified=0 %s %s\n" "${actual}" "${expected}"
 		git --no-pager diff --no-index --unified=0 "${actual}" "${expected}"
     fi
-    
+
 done
 
 # Calcular el porcentaje promedio de coincidencia
