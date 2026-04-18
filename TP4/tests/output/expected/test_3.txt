@@ -9,7 +9,6 @@ compute: definicion, input: int val, retorna: int, linea 3
 main: definicion, input: void, retorna: int, linea 8
 
 * Listado de errores semanticos:
-5:5: Incompatibilidad de tipos al retornar el tipo 'void' pero se esperaba 'int'
 10:13: Funcion 'unknown' sin declarar
 
 * Listado de errores sintacticos:

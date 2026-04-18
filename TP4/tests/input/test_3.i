@@ -2,7 +2,7 @@ int process(int data);
 
 int compute(int val) {
     int result = process(val);
-    return;
+    return result;
 }
 
 int main(void) {
