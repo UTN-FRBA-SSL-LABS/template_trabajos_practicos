@@ -6,11 +6,11 @@ Repositorio designado para los trabajos prácticos *grupales* de la asignatura
 perteneciente a la carrera de **Ingeniería en Sistemas de Información** dictada en la  
 **Universidad Tecnológica Nacional - Facultad Regional Buenos Aires** (***UTN FRBA***).
 
-> **Aclaración sobre como completar curso (K###):**  
-> - Indicar el código de curso correspondiente (ej: `K2001`, `K2051`, etc.)  
-> - En caso de que el trabajo esté realizado por integrantes de múltiples cursos, separar con `/`  
->   - Ejemplo 2 cursos: `K2001 / K2101`  (siempre mismo día y turno)
->   - Ejemplo 3 cursos: `K2051 / K2151 / K2251`  (siempre mismo día y turno) 
+**Aclaración sobre como completar curso (K###):**  
+- Indicar el código de curso correspondiente (ej: `K2001`, `K2051`, etc.)
+- En caso de que el trabajo esté realizado por integrantes de múltiples cursos, separar con `/`  
+- Ejemplo 2 cursos: `K2001 / K2101`  (siempre mismo día y turno)
+- Ejemplo 3 cursos: `K2051 / K2151 / K2251`  (siempre mismo día y turno) 
 
 ---
 
