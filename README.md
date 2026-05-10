@@ -11,7 +11,7 @@ perteneciente a la carrera de **Ingeniería en Sistemas de Información** dictad
 Completar esta tabla con los datos de todos los integrantes del grupo.
 
 La actualizacion de esta informacion debe realizarse como parte de la entrega
-del **TP1**, dentro del mismo Pull Request del trabajo practico. Por favor *No abrir un PR
+del **TP1**, dentro del mismo Pull Request del trabajo practico. Por favor **No abrir un PR
 separado solo para modificar estos datos y no realizar cambios directamente
 sobre la rama `main`**.
 
