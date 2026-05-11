@@ -1,4 +1,4 @@
-# SSL - 2### - K2### ***(\*Completar con el \## del año y el \#### del código de la comisión\*)***
+# SSL - 20## - K2### ***(\*Completar con el \## del año y el \### del código de la comisión\*)***
 ## Grupo \## ***(\*Completar con el \## de grupo\*)***
 
 Repositorio designado para los trabajos prácticos *grupales* de la asignatura
