@@ -20,7 +20,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
 
     - name: Instalar herramientas de calidad
       run: |
@@ -67,7 +67,7 @@ jobs:
         fi
 
     - name: Subir reporte de calidad
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: quality-report-TP1
         path: quality-report.md
@@ -121,7 +121,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
 
     - name: Install dependencies
       run: |
