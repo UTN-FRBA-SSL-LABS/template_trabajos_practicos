@@ -4,9 +4,12 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - 'TP4/**'
 
 jobs:
   precommit:
+    if: github.head_ref == 'TP_4'
     runs-on: ubuntu-latest
     continue-on-error: true
 

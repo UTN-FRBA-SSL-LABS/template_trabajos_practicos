@@ -11,6 +11,7 @@ on:
 jobs:
   quality:
     name: Calidad de código (informativo)
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'TP_2'
     runs-on: ubuntu-latest
     continue-on-error: true
 
@@ -113,6 +114,7 @@ jobs:
         fi
 
   test:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'TP_2'
     runs-on: ubuntu-latest
 
     permissions:
@@ -200,7 +202,7 @@ jobs:
   llm-review:
     name: Revisión LLM
     needs: [test, quality]
-    if: needs.test.result == 'success' && github.event_name == 'pull_request'
+    if: needs.test.result == 'success' && github.event_name == 'pull_request' && github.head_ref == 'TP_2'
     uses: ./.github/workflows/llm_review.yml
     with:
       tp_dir:           "TP2"
