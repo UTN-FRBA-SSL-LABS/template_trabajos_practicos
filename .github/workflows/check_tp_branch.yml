@@ -1,0 +1,72 @@
+name: Validar rama y carpeta del TP
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  check:
+    name: Validar rama y carpeta del TP
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del PR
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Validar rama origen y archivos modificados
+        env:
+          HEAD_BRANCH: ${{ github.head_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          case "$HEAD_BRANCH" in
+            TP_1)
+              EXPECTED_DIR="TP1"
+              ;;
+            TP_2)
+              EXPECTED_DIR="TP2"
+              ;;
+            TP_3)
+              EXPECTED_DIR="TP3"
+              ;;
+            TP_4)
+              EXPECTED_DIR="TP4"
+              ;;
+            *)
+              echo "Error: los PRs a main deben venir de TP_1, TP_2, TP_3 o TP_4."
+              echo "Rama recibida: $HEAD_BRANCH"
+              exit 1
+              ;;
+          esac
+
+          CHANGED_FILES="$(git diff --name-only "$BASE_SHA...$HEAD_SHA")"
+
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "Error: no se detectaron archivos modificados en el PR."
+            exit 1
+          fi
+
+          echo "Rama origen: $HEAD_BRANCH"
+          echo "Carpeta esperada: $EXPECTED_DIR"
+          echo "Archivos modificados:"
+          echo "$CHANGED_FILES"
+
+          EXPECTED_CHANGES="$(echo "$CHANGED_FILES" | grep "^${EXPECTED_DIR}/" || true)"
+          if [ -z "$EXPECTED_CHANGES" ]; then
+            echo "Error: la rama $HEAD_BRANCH debe modificar archivos dentro de ${EXPECTED_DIR}/."
+            exit 1
+          fi
+
+          INVALID_CHANGES="$(echo "$CHANGED_FILES" | grep -Ev "^${EXPECTED_DIR}/" || true)"
+          if [ -n "$INVALID_CHANGES" ]; then
+            echo "Error: la rama $HEAD_BRANCH solo puede modificar archivos dentro de ${EXPECTED_DIR}/."
+            echo "Archivos fuera de ${EXPECTED_DIR}/:"
+            echo "$INVALID_CHANGES"
+            exit 1
+          fi
+
+          echo "OK: $HEAD_BRANCH modifica solo archivos dentro de ${EXPECTED_DIR}/."
