@@ -2,21 +2,121 @@
 #* text=auto
 
 # Normalized and converts to native line endings on checkout.
-#*.md text
-#*.json text
-#GNUmakefile text
-#makefile text
-#Makefile text
-#*.mk text
-#*.c text
-#*.h text
+#* text
 
 # Convert to CRLF line endings on checkout.
+#* text eol=crlf
+
 *.ps1 text eol=crlf
 
 # Convert to LF line endings on checkout.
+#* text eol=lf
+
+*.c text eol=lf
+*.h text eol=lf
+
+*.l text eol=lf
+
+*.y text eol=lf
+
+.gitattributes text eol=lf
+.gitignore text eol=lf
+
+GNUmakefile text eol=lf
+makefile text eol=lf
+Makefile text eol=lf
+*.mk text eol=lf
+
+README text eol=lf
+LICENSE text eol=lf
+NOTICE text eol=lf
+CHANGELOG text eol=lf
+VERSION text eol=lf
+INSTALL text eol=lf
+COPYING text eol=lf
+AUTHORS text eol=lf
+CREDITS text eol=lf
+
+tp.code-workspace text eol=lf
+
+*.md text eol=lf
+*.markdown text eol=lf
+
+*.yml text eol=lf
+*.yaml text eol=lf
+
+*.txt text eol=lf
+*.TXT text eol=lf
+
 *.sh text eol=lf
+
+*.ini text eol=lf
+*.cnf text eol=lf
+*.conf text eol=lf
 *.config text eol=lf
+*.xml text eol=lf
+
+*.log text eol=lf
+
+*.json text eol=lf
+
+*.iml text eol=lf
 
 # Binary files.
+*.dat binary
+*.data binary
+*.exe binary
+*.aarch64 binary
+*.darwin binary
+*.linux binary
+*.freebsd binary
+
+# Archive files.
+*.zip binary
+*.tar binary
+*.gz binary
+*.tgz binary
+*.7z binary
+
+# Document files.
 *.pdf binary
+*.doc binary
+*.docx binary
+*.xls binary
+*.xlsx binary
+*.ppt binary
+*.pptx binary
+*.csv binary
+
+# Font files.
+*.ttf binary
+*.woff binary
+*.woff2 binary
+
+# Image files.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.tif binary
+*.tiff binary
+*.bmp binary
+
+# Audio files.
+*.mp3 binary
+*.ogg binary
+*.opus binary
+*.wav binary
+
+# Video files.
+*.mp4 binary
+*.mov binary
+*.avi binary
+*.wmv binary
+*.flv binary
+*.mkv binary
+
+# Subtitle files.
+*.vtt binary
