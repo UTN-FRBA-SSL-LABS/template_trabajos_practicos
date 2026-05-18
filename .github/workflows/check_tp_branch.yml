@@ -61,12 +61,12 @@ jobs:
             exit 1
           fi
 
-          INVALID_CHANGES="$(echo "$CHANGED_FILES" | grep -Ev "^${EXPECTED_DIR}/" || true)"
+          INVALID_CHANGES="$(echo "$CHANGED_FILES" | grep -Ev "^(${EXPECTED_DIR}/|README\.md$)" || true)"
           if [ -n "$INVALID_CHANGES" ]; then
-            echo "Error: la rama $HEAD_BRANCH solo puede modificar archivos dentro de ${EXPECTED_DIR}/."
-            echo "Archivos fuera de ${EXPECTED_DIR}/:"
+            echo "Error: la rama $HEAD_BRANCH solo puede modificar archivos dentro de ${EXPECTED_DIR}/ y README.md."
+            echo "Archivos fuera de ${EXPECTED_DIR}/ o README.md:"
             echo "$INVALID_CHANGES"
             exit 1
           fi
 
-          echo "OK: $HEAD_BRANCH modifica solo archivos dentro de ${EXPECTED_DIR}/."
+          echo "OK: $HEAD_BRANCH modifica archivos permitidos (${EXPECTED_DIR}/ y README.md)."
