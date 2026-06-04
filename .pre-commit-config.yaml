@@ -37,6 +37,6 @@ repos:
         language: python
         types: [c]
         files: \.(c|h)$
-        args: [--filter=-legal/copyright,-build/include_subdir]
+        args: ['--filter=-legal/copyright,-build/include_subdir']
         # Requiere: pip install cpplint
         # Verifica convenciones de estilo del Google C++ Style Guide.
