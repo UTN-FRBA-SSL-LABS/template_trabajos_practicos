@@ -31,7 +31,8 @@ jobs:
           ".github/CODEOWNERS"
           ".github/PULL_REQUEST_TEMPLATE.md"
           ".clang-format"
-          ".pre-commit-config.yaml"
+          # TODO 2027: volver a proteger .pre-commit-config.yaml (fue liberado en 2026 para que los alumnos puedan ajustar el pre-commit)
+          # ".pre-commit-config.yaml"
           "TP1/tests/"
           "TP2/tests/"
           "TP3/tests/"
