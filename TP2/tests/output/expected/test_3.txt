@@ -39,8 +39,8 @@ continue: linea 7, columna 5
 
 * Listado de constantes enteras decimales:
 5: valor 5
-2: valor 2
 1: valor 1
+2: valor 2
 Total acumulado de sumar todas las constantes decimales: 8
 
 * Listado de constantes enteras hexadecimales:

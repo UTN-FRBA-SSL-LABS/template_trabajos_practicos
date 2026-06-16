@@ -69,7 +69,7 @@ enum: linea 2, columna 1
 
 * Listado de operadores/caracteres de puntuación:
 {: aparece 2 veces
-;: aparece 7 veces
+;: aparece 8 veces
 }: aparece 2 veces
 ,: aparece 2 veces
 =: aparece 4 veces
