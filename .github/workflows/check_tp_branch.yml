@@ -9,6 +9,7 @@ jobs:
   check:
     name: Validar rama y carpeta del TP
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout del PR

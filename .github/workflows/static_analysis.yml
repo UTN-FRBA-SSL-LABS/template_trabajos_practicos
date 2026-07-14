@@ -8,6 +8,7 @@ on:
 jobs:
   static-analysis:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     continue-on-error: true
 
     steps:
@@ -16,9 +17,8 @@ jobs:
 
     - name: Set up Cppcheck and Cpplint
       run: |
-        sudo apt-get update
-        sudo apt-get install -y cppcheck python3-pip
-        pip3 install cpplint
+        .github/scripts/apt-install.sh cppcheck python3-pip
+        timeout --signal=TERM --kill-after=10s 3m pip3 install --retries 3 --timeout 30 cpplint
 
     - name: Run Cppcheck
       continue-on-error: true
