@@ -13,6 +13,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     continue-on-error: true
 
     steps:
@@ -20,9 +21,7 @@ jobs:
       uses: actions/checkout@v6
 
     - name: Instalar dependencias
-      run: |
-        sudo apt-get update -qq
-        sudo apt-get install -y gcc make flex libfl-dev bison libbison-dev
+      run: .github/scripts/apt-install.sh gcc make flex libfl-dev bison libbison-dev
 
     - name: Compilar TP1
       continue-on-error: true

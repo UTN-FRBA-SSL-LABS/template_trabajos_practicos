@@ -12,7 +12,11 @@ on:
 jobs:
   check:
     name: Verificar archivos del pipeline
+    # El template es la fuente autorizada de estos archivos. En los repos
+    # derivados esta condición es verdadera y la protección sigue activa.
+    if: github.repository != 'UTN-FRBA-SSL-LABS/template_trabajos_practicos'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
     - name: Checkout

@@ -8,7 +8,11 @@ on:
 jobs:
   check:
     name: Validar rama y carpeta del TP
+    # Los PRs de mantenimiento del template no representan entregas de TPs.
+    # En cualquier repo derivado la validación continúa ejecutándose.
+    if: github.repository != 'UTN-FRBA-SSL-LABS/template_trabajos_practicos'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout del PR

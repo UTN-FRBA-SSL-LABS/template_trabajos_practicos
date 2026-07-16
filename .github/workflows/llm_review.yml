@@ -60,6 +60,7 @@ jobs:
   llm-review:
     name: Revisión con LLM (${{ inputs.tp_dir }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     permissions:
       pull-requests: write  # necesario para publicar comentarios en el PR
@@ -88,7 +89,7 @@ jobs:
           python-version: "3.11"
 
       - name: Instalar dependencias Python
-        run: pip install anthropic requests
+        run: timeout --signal=TERM --kill-after=10s 3m pip install --retries 3 --timeout 30 anthropic requests
 
       - name: Ejecutar revisión LLM
         run: python .github/scripts/llm_review.py "${{ inputs.tp_dir }}" "${{ inputs.rubric_file }}"

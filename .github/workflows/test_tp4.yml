@@ -13,6 +13,7 @@ jobs:
     name: Calidad de código (informativo)
     if: github.event_name == 'workflow_dispatch' || github.head_ref == 'TP_4'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     continue-on-error: true
 
     permissions:
@@ -24,9 +25,7 @@ jobs:
       uses: actions/checkout@v6
 
     - name: Instalar herramientas de calidad
-      run: |
-        sudo apt-get update -qq
-        sudo apt-get install -y clang-format cppcheck
+      run: .github/scripts/apt-install.sh clang-format cppcheck
 
     - name: Verificar formato (clang-format)
       continue-on-error: true
@@ -116,6 +115,7 @@ jobs:
   test:
     if: github.event_name == 'workflow_dispatch' || github.head_ref == 'TP_4'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     permissions:
       contents: read
@@ -126,9 +126,7 @@ jobs:
       uses: actions/checkout@v6
 
     - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential flex libfl-dev bison libbison-dev
+      run: .github/scripts/apt-install.sh build-essential flex libfl-dev bison libbison-dev
 
     - name: Compile code with make
       id: compile
