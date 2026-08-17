@@ -46,8 +46,9 @@ Desktop.ini
 #Makefile
 #mkframework/**
 
-# Tests output folders
-**/tests/output/actual/
+# Tests files
+tests/
+tests/**
 
 # Generated folders
 .deps/
