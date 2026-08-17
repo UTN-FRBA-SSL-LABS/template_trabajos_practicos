@@ -1,3 +1,26 @@
+# Hidden files
+.*
+
+# Visual Studio Code files
+!**/.vscode/
+**/.vscode/**
+!**/.vscode/c_cpp_properties.json
+!**/.vscode/launch.json
+!**/.vscode/settings.json
+!**/.vscode/tasks.json
+
+# Git files
+!.gitignore
+!.gitattributes
+
+# GitHub files
+!/.github/
+!/.github/**
+
+# Pre-commit files
+!/.clang-format
+!/.pre-commit-config.yaml
+
 # Log files
 *.log
 
@@ -10,28 +33,21 @@
 # Dump files
 *.dmp
 
-# Visual Studio Code files
-.vscode/*
-!.vscode/c_cpp_properties.json
-!.vscode/launch.json
-!.vscode/settings.json
-!.vscode/tasks.json
+# macOS
+.DS_Store
 
-# Eclipse files
-.settings/
-.cproject
-.project
-
-# IntelliJ files
-.idea/
-
-# Test output folders (binaries/artifacts only, not test cases)
-tests/output/actual/
+# Windows
+Thumbs.db
+Desktop.ini
 
 # Makefile
 #GNUmakefile
-#mkframework/
-#mkframework/*
+#makefile
+#Makefile
+#mkframework/**
+
+# Tests output folders
+**/tests/output/actual/
 
 # Generated folders
 .deps/
@@ -74,6 +90,11 @@ obj/*.i
 *.gch
 *.pch
 
+# Code coverage files
+*.gcda
+*.gcno
+*.gcov
+
 # Libraries
 *.lib
 *.a
@@ -108,3 +129,9 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
