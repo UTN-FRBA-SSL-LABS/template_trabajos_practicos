@@ -109,24 +109,41 @@ class StateAPITests(unittest.TestCase):
         gh.api = lambda *args: calls.append(args)
         gh.comment(9, "report")
         self.assertEqual(calls[0][:2], ("POST", "issues/9/comments"))
-    def test_legacy_closed_pr_full_report_imported_but_errors_are_not(self):
-        body = "\n".join([state.MARKER, "### Resultado:", "### Evaluación de rúbrica", "### Trabajo en equipo",
-                          "Revisión automática orientativa — la decisión final es del docente."])
-        comment = {"id": 17, "user": {"login": state.BOT}, "body": body,
-                   "html_url": "https://example.invalid/comment", "created_at": "2026-09-01"}
-        pr = {"number": 4, "state": "closed", "head": {"repo": {"full_name": "org/repo"}}}
-        gh = types.SimpleNamespace(repo="org/repo", pages=lambda path: iter([pr] if path.startswith("pulls?") else [comment]))
-        recovered = state.find_legacy(gh, "TP_1")
-        self.assertEqual(recovered["pr"], 4)
-        self.assertIsNone(recovered["head_sha"])
-        comment["body"] = state.MARKER + "Error: timeout"
-        self.assertIsNone(state.find_legacy(gh, "TP_1"))
-        comment["body"] = body
-        comment["user"]["login"] = "student"
-        self.assertIsNone(state.find_legacy(gh, "TP_1"))
+    def test_old_pr_is_out_of_scope(self):
+        self.assertFalse(state.is_new_submission("2026-09-27T23:59:59Z", "2026-09-28T00:00:00Z"))
+    def test_new_pr_and_exact_activation_are_in_scope(self):
+        self.assertTrue(state.is_new_submission("2026-09-28T00:00:00Z", "2026-09-28T00:00:00Z"))
+        self.assertTrue(state.is_new_submission("2026-10-01T00:00:00Z", "2026-09-28T00:00:00Z"))
+    def test_policy_dates_compare_instants_not_local_clock_text(self):
+        self.assertFalse(state.is_new_submission("2026-09-28T01:00:00+03:00", "2026-09-28T00:00:00Z"))
+    def test_policy_without_start_or_timezone_fails_closed(self):
+        for start in ["", "invalid", "2026-09-28T00:00:00"]:
+            with self.subTest(start=start), self.assertRaises(ValueError):
+                state.is_new_submission("2026-09-28T00:00:00Z", start)
 
 
 class TriggeringActorTests(unittest.TestCase):
+    def test_old_pr_skips_receipt_ledger_tests_and_llm(self):
+        pr = {"state": "open", "created_at": "2026-09-01T00:00:00Z",
+              "base": {"ref": "main", "sha": "a" * 40},
+              "head": {"ref": "TP_1", "sha": "b" * 40, "repo": {"full_name": "org/repo"}}}
+        calls = []
+        gh = types.SimpleNamespace(repo="org/repo", api=lambda *args: (calls.append(args) or pr))
+        with tempfile.TemporaryDirectory() as tmp:
+            event, output = Path(tmp) / "event.json", Path(tmp) / "output"
+            event.write_text(json.dumps({"number": 1, "pull_request": pr}))
+            env = {"GITHUB_EVENT_PATH": str(event), "GITHUB_OUTPUT": str(output),
+                   "GITHUB_EVENT_NAME": "pull_request_target", "GITHUB_RUN_ID": "123",
+                   "SSL_POLICY_START": "2026-09-28T00:00:00Z"}
+            with patch.dict(os.environ, env), patch.object(submission_gate, "GitHub", return_value=gh), \
+                 patch.object(submission_gate, "fetch_shas"), patch.object(submission_gate, "Ledger") as ledger, \
+                 patch.object(submission_gate, "validate") as validate:
+                submission_gate.main()
+                ledger.assert_not_called()
+                validate.assert_not_called()
+            self.assertEqual(output.read_text(), "eligible=false\n")
+            self.assertEqual(calls[-1][2]["description"], "PR previo a la activación: exento del circuito nuevo")
+
     def test_student_cannot_rerun_teacher_manual_gate(self):
         pr = {"state": "open", "base": {"ref": "main", "sha": "a" * 40},
               "head": {"ref": "TP_1", "sha": "b" * 40, "repo": {"full_name": "org/repo"}}}

@@ -5,12 +5,21 @@ import json
 import os
 import re
 from urllib.error import HTTPError
-from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 BRANCH = "ssl-evaluaciones"
 MARKER = "<!-- ssl-llm-review -->"
 BOT = "github-actions[bot]"
+
+
+def is_new_submission(created_at, policy_start):
+    if not policy_start:
+        raise ValueError("Falta configurar SSL_POLICY_START con el inicio de la política para PR nuevos.")
+    created = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+    start = datetime.fromisoformat(policy_start.replace("Z", "+00:00"))
+    if created.tzinfo is None or start.tzinfo is None:
+        raise ValueError("Las fechas deben incluir zona horaria.")
+    return created >= start
 
 
 class APIError(RuntimeError):
@@ -159,22 +168,3 @@ def publish_saved(gh, branch, pr, state):
     if len(body) > 60000:
         body = policy
     gh.comment(pr, body)
-
-
-def find_legacy(gh, branch):
-    """Recover clearly complete bot reports from open OR closed PRs, without guessing a SHA."""
-    params = urlencode({"state": "all", "head": gh.repo.split('/')[0] + ':' + branch, "base": "main"})
-    for pr in gh.pages(f"pulls?{params}"):
-        if (pr["head"].get("repo") or {}).get("full_name", "").lower() != gh.repo.lower():
-            continue
-        for comment in gh.pages(f"issues/{pr['number']}/comments"):
-            body = comment.get("body", "")
-            if comment["user"]["login"] != BOT or MARKER not in body:
-                continue
-            required = ["### Resultado:", "### Evaluación de rúbrica", "### Trabajo en equipo",
-                        "Revisión automática orientativa — la decisión final es del docente."]
-            if all(x in body for x in required):
-                report = body.replace(MARKER, "").strip()
-                return report_record(branch, pr["number"], None, report, f"historico-{comment['id']}",
-                                     legacy_comment=comment["html_url"], legacy_created_at=comment["created_at"])
-    return None

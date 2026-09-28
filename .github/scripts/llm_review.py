@@ -9,7 +9,7 @@ Uso:
     python llm_review.py
 
 Variables de entorno requeridas:
-    SSL_ANTHROPIC_API_KEY, GITHUB_TOKEN, PR_NUMBER,
+    ANTHROPIC_API_KEY, GITHUB_TOKEN, PR_NUMBER,
     GITHUB_REPOSITORY, BASE_SHA, HEAD_SHA
 """
 
@@ -316,7 +316,7 @@ def generate_report(prompt, client=None):
     """One request, no SDK retries, hard wall-clock deadline including response parsing."""
     if client is None:
         import anthropic
-        client = anthropic.Anthropic(api_key=os.environ["SSL_ANTHROPIC_API_KEY"],
+        client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"],
                                      timeout=180.0, max_retries=0)
     def expired(signum, frame):
         raise TimeoutError("La revisión superó los 180 segundos.")
@@ -353,7 +353,7 @@ def review_once(ledger, branch, pr, head, generation, force, generate, publish):
 
 def main():
     from local_receipt import blob, validate
-    from review_state import GitHub, Ledger, is_codeowner, publish_saved, validate_branch
+    from review_state import GitHub, Ledger, is_codeowner, is_new_submission, publish_saved, validate_branch
     from submission_gate import fetch_shas
     gh = GitHub()
     pr_number = int(os.environ["PR_NUMBER"])
@@ -376,6 +376,9 @@ def main():
             raise ValueError("Reevaluación solo mediante workflow_dispatch desde main.")
         if not is_codeowner(blob(base, ".github/CODEOWNERS").decode(), os.environ["GITHUB_TRIGGERING_ACTOR"]):
             raise ValueError("El usuario que inició esta ejecución no es CODEOWNER.")
+    if not is_new_submission(pr["created_at"], os.environ.get("SSL_POLICY_START", "")):
+        print("PR anterior a la activación: no se aplica la nueva revisión.")
+        return
     validate(tp, head, base)
     os.environ["BASE_SHA"] = base
     rubric = Path(f".github/rubrics/{tp.lower()}_rubric.md").read_text()

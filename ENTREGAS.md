@@ -4,6 +4,9 @@ Antes de enviar una versión para revisión, ejecuten la misma suite que usa el
 laboratorio. Una constancia válida habilita la compilación y los tests remotos.
 La constancia es un control del proceso de trabajo: no reemplaza los tests remotos.
 
+Este circuito se aplica a los PR nuevos desde su activación en el repositorio.
+Las entregas anteriores no se vuelven a evaluar ni se les exige la nueva constancia.
+
 ## Preparar la entrega
 
 Ejemplo para `TP3`, trabajando en la rama `TP_3`, desde la raíz del repositorio:

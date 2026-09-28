@@ -19,14 +19,23 @@ on:
 
 permissions: {}
 
+env:
+  # Set once at rollout. Earlier PRs keep their previous deliveries untouched.
+  SSL_POLICY_START: ${{ vars.SSL_POLICY_START }}
+
 jobs:
   gate:
     name: Verificación previa
-    if: github.repository != 'UTN-FRBA-SSL-LABS/template_trabajos_practicos'
+    if: >-
+      ${{ !endsWith(github.repository, '-1C') &&
+      (startsWith(github.repository, 'utn-frba-ssl/26-001-') ||
+       startsWith(github.repository, 'utn-frba-ssl/26-051-') ||
+       startsWith(github.repository, 'utn-frba-ssl/26-251-') ||
+       startsWith(github.repository, 'utn-frba-ssl/26-053-')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:
-      contents: write # migración de devoluciones históricas al registro
+      contents: read
       pull-requests: write
       statuses: write
     outputs:
@@ -135,9 +144,6 @@ jobs:
     if: needs.tests.result == 'success' && needs.gate.outputs.needs_llm == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Must be configured before rollout: only main can access this environment;
-    # the old repository-level ANTHROPIC_API_KEY must then be removed.
-    environment: ssl-llm
     permissions:
       contents: write
       pull-requests: write
@@ -165,7 +171,7 @@ jobs:
         run: '"$RUNNER_TEMP/ssl-llm-venv/bin/python" .github/scripts/llm_review.py'
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          SSL_ANTHROPIC_API_KEY: ${{ secrets.SSL_ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PR_NUMBER: ${{ needs.gate.outputs.pr }}
           HEAD_SHA: ${{ needs.gate.outputs.head }}
           BASE_SHA: ${{ needs.gate.outputs.base }}

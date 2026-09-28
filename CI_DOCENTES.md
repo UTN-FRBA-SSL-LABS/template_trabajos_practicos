@@ -3,8 +3,8 @@
 ## Estado de la implementación
 
 Esta versión se prepara para el template y los repositorios activos de 2026 de
-las comisiones 001, 051, 052 y 053. Su publicación requiere configurar el secreto
-y el environment indicados más abajo. No se deben ejecutar los scripts antiguos
+las comisiones 001, 051, 251 y 053. El curso 052 queda expresamente excluido.
+Se reutiliza el secreto ANTHROPIC_API_KEY existente. No se deben ejecutar los scripts antiguos
 `sync_student_workflows.sh` ni `restore_branch_protection.sh` para este cambio:
 no contemplan el nuevo circuito ni la preservación selectiva de configuraciones.
 
@@ -45,35 +45,33 @@ informativa redundante de todos ellos. La calidad se aplica al TP entregado.
 
 ## Configuración necesaria antes de activar
 
-1. Crear el environment `ssl-llm` con política de ramas seleccionadas que permita
-   únicamente la rama `main` (tipo branch, no tags). Si ya existe, revisar y
-   preservar sus otras restricciones.
-2. Cargar allí el secreto **`SSL_ANTHROPIC_API_KEY`**. No debe existir como secreto
-   general del repositorio o de la organización accesible desde otras ramas.
-3. Al hacer el corte, retirar el secreto anterior **`ANTHROPIC_API_KEY`** del
-   repositorio y de cualquier otro origen accesible a los workflows viejos.
-   GitHub no permite leer su valor actual: un administrador debe volver a
-   suministrarlo mediante la interfaz de Secrets o la entrada segura de `gh`.
-4. Publicar el circuito validado en `main`, preservando el código de alumnos,
-   suites oficiales propias del repo, integrantes, CODEOWNERS, colaboradores y
-   configuraciones particulares. No reemplazar el README personalizado por el
-   README del template.
-5. Revisar los checks requeridos en la protección de `main`: el nuevo contexto
-   que resume compilación/tests es **`SSL / Tests de entrega`**. Retirar solamente
-   los nombres retirados por este cambio; preservar aprobaciones de CODEOWNERS,
-   restricciones de push y demás políticas. El estado se publica sobre el SHA
-   probado, porque el workflow de control se ejecuta sobre `main`.
-6. Verificar por API la versión de los archivos, el environment, los nombres de
-   secretos (nunca sus valores) y las protecciones. No iniciar Actions ni llamar
-   al proveedor como parte de esta verificación de distribución.
+1. Conservar **`ANTHROPIC_API_KEY`** donde ya está configurado. No se necesita
+   recuperar su valor, crear otra clave ni trasladarla a un environment.
+2. Fijar una vez la variable de Actions **`SSL_POLICY_START`** con el instante de
+   activación en UTC (ISO 8601, por ejemplo `2026-09-28T15:00:00Z`; no copiar este
+   ejemplo como fecha real). Solo los PR creados desde ese instante entran al
+   circuito nuevo. Si falta esta variable, el control se detiene sin invocar al
+   proveedor. No modificarla después para reiniciar las evaluaciones.
+3. Respaldar y publicar el circuito validado en `main`, preservando código de
+   alumnos, suites propias, integrantes, CODEOWNERS, colaboradores y ajustes.
+   No reemplazar el README personalizado por el README del template.
+4. Revisar los checks requeridos: el nuevo contexto es **`SSL / Tests de entrega`**.
+   Retirar solamente los nombres reemplazados y preservar las demás protecciones.
+   El estado se publica en el SHA probado. Para un PR previo a la activación se
+   publica una exención explícita, sin afirmar que sus tests se hayan ejecutado.
+5. Verificar archivos, variable de inicio, presencia del secreto y protecciones
+   mediante API, sin iniciar Actions ni llamar al proveedor para distribuir.
 
-El cambio de ubicación/nombre de la clave es necesario para que **Re-run** de
-una ejecución histórica no siga accediendo al proveedor con el script anterior.
-Tampoco se debe dejar la nueva clave disponible para un workflow editado en una
-rama de estudiante. `CODEOWNERS` por sí solo no limita quién puede pulsar Run.
+Por decisión del usuario, las reejecuciones de workflows históricos quedan
+fuera de este cambio. La clave actual sigue disponible para ellos. La restricción
+CODEOWNERS y el registro único se aplican al circuito nuevo; esto no impide que
+alguien con permisos de escritura cree otro workflow que utilice un secreto del
+repositorio. Se conserva el modelo de confianza indicado por el usuario.
 
-Los repositorios creados desde el template no heredan sus secretos ni sus
-environments; deben configurarse al crear cada repositorio de curso.
+En un repositorio nuevo creado desde el template, configurar la variable de inicio
+y la clave si todavía no están disponibles. El filtro actual cubre únicamente
+2026 y las cuatro comisiones indicadas; excluye 052, los sufijos `-1C` y el propio
+template, cuyos PR son de mantenimiento.
 
 ## Reevaluación manual
 
@@ -92,7 +90,7 @@ Re-run de una reevaluación que ya guardó su reporte recupera ese mismo reporte
 Para pedir otra se necesita un nuevo Run workflow. Un fallo al comentar no
 vuelve a llamar al proveedor si el registro ya fue guardado.
 
-## Registro, recuperación y migración
+## Registro y recuperación
 
 `ssl-evaluaciones` contiene `evaluaciones/TP_N.json` con el historial y reportes
 Markdown en `reportes/TP_N/`. Se guardan juntos mediante un commit y un avance
@@ -105,13 +103,10 @@ esa rama junto con los backups de cada repositorio. Su eliminación puede quitar
 el límite; la constancia local tampoco demuestra criptográficamente que los
 tests se hayan ejecutado en el equipo del alumno.
 
-Si todavía no hay registro, el control busca devoluciones completas del bot en
-PR abiertos y cerrados de esa misma rama y las incorpora. Solo reconoce reportes
-con las secciones y cierre del formato anterior. Errores y textos cortados no
-cuentan. Si un reporte anterior fue borrado, reemplazado por un error o usa otro
-formato, se requiere revisión docente para reconstruirlo; no se puede inferir
-una devolución completa solo de un check verde. Los reportes históricos sin SHA
-lo indican explícitamente y nunca atribuyen su aprobación al HEAD actual.
+No se recorren ni migran devoluciones de PR anteriores a la activación. El
+registro se construye con las devoluciones del circuito nuevo. Desde entonces,
+cerrar un PR y crear otro de la misma rama conserva el límite y el enlace al
+reporte original, sin necesidad de consultar todos los PR históricos.
 
 Un timeout o caída anterior al guardado duradero no consume la devolución. Si
 el proveedor llegó a procesar una llamada que acabó en timeout, puede cobrarla:
@@ -132,6 +127,5 @@ externas.
 
 Referencias de la plataforma:
 - [Eventos y seguridad de pull_request_target](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request_target)
-- [Environments y políticas de ramas](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments)
 - [Reejecución de workflows](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/re-run-workflows-and-jobs)
 - [Concurrencia de workflows](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)

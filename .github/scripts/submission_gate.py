@@ -8,7 +8,7 @@ import re
 import subprocess
 
 from local_receipt import blob, git, validate
-from review_state import GitHub, Ledger, find_legacy, is_codeowner, publish_saved, validate_branch
+from review_state import GitHub, Ledger, is_codeowner, is_new_submission, publish_saved, validate_branch
 
 
 def fetch_shas(*shas):
@@ -29,7 +29,8 @@ def output(values):
 
 
 def test_status(gh, head, state):
-    descriptions = {"pending": "Esperando verificación de esta entrega", "failure": "La verificación previa no fue aprobada"}
+    descriptions = {"pending": "Esperando verificación de esta entrega", "failure": "La verificación previa no fue aprobada",
+                    "success": "PR previo a la activación: exento del circuito nuevo"}
     gh.api("POST", f"statuses/{head}", {"context": "SSL / Tests de entrega", "state": state,
            "description": descriptions[state],
            "target_url": f"https://github.com/{gh.repo}/actions/runs/{os.environ['GITHUB_RUN_ID']}"})
@@ -76,15 +77,16 @@ def main():
     fetch_shas(base, head)
     if manual and not is_codeowner(blob(base, ".github/CODEOWNERS").decode(), os.environ["GITHUB_TRIGGERING_ACTOR"]):
         raise ValueError("Solo un CODEOWNER puede solicitar una reevaluación manual.")
+    if not is_new_submission(pr["created_at"], os.environ.get("SSL_POLICY_START", "")):
+        output({"eligible": False})
+        test_status(gh, head, "success")
+        print("PR anterior a la activación: no se ejecuta el circuito nuevo ni se modifica su devolución.")
+        return
     os.environ["SSL_STATUS_HEAD"] = head
     test_status(gh, head, "pending")
     # Read/report the durable result even if the new local receipt is invalid.
     ledger = Ledger(gh)
     state = ledger.read(branch)
-    if not state:
-        legacy = find_legacy(gh, branch)
-        if legacy:
-            state = ledger.save(branch, legacy)
     if state:
         publish_saved(gh, branch, pr_number, state)
     try:
