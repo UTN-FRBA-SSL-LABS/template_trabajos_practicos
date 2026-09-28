@@ -3,22 +3,20 @@
 LLM Code Review — SSL UTN-FRBA
 
 Recolecta archivos fuente de un TP y estadísticas de colaboración git,
-llama a la API de Anthropic y publica un comentario Markdown en el PR.
+llama una sola vez a Anthropic, guarda la devolución y publica un comentario.
 
 Uso:
-    python llm_review.py <tp_dir> <rubric_file>
+    python llm_review.py
 
 Variables de entorno requeridas:
-    ANTHROPIC_API_KEY, GITHUB_TOKEN, PR_NUMBER,
+    SSL_ANTHROPIC_API_KEY, GITHUB_TOKEN, PR_NUMBER,
     GITHUB_REPOSITORY, BASE_SHA, HEAD_SHA
 """
 
 import os
 import sys
 import subprocess
-import time
-import anthropic
-import requests
+import signal
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -46,43 +44,26 @@ MSG_BUDGET_TRUNC    = "// ... [truncado por límite de presupuesto de tokens]"
 # Recolección de archivos fuente
 # ---------------------------------------------------------------------------
 def collect_source_files(tp_dir: str) -> dict:
-    """
-    Busca recursivamente en tp_dir archivos .c .h .l .y
-    Excluye archivos generados (lex.yy.c, .tab.c/.tab.h) y binarios.
-    Trunca archivos grandes para controlar costos.
-    """
-    extensions = {".c", ".h", ".l", ".y"}
-    skip_patterns = {"lex.yy.c", ".tab.c", ".tab.h", "/bin/", "/obj/", "/.git/"}
-
+    """Read Git blobs as data, never checkout or execute the student's scripts."""
+    from local_receipt import entries, git as git_bytes
     files = {}
-    for ext in sorted(extensions):
-        for f in sorted(Path(tp_dir).rglob(f"*{ext}")):
-            path_str = str(f)
-            if any(p in path_str for p in skip_patterns):
-                continue
-            try:
-                content = f.read_text(errors="replace")
-            except Exception:
-                continue
-
-            lines = content.splitlines()
-            if len(lines) > MAX_FILE_LINES:
-                content = "\n".join(lines[:MAX_FILE_LINES])
-                content += "\n\n" + MSG_FILE_TRUNC.format(lines=MAX_FILE_LINES, total=len(lines))
-
-            files[str(f)] = content
-
-    # Si el total supera el presupuesto, truncar los archivos más grandes
-    total_chars = sum(len(c) for c in files.values())
-    if total_chars > MAX_TOTAL_SOURCE_CHARS:
-        ratio = MAX_TOTAL_SOURCE_CHARS / total_chars
-        for path in list(files.keys()):
-            lines = files[path].splitlines()
-            keep = max(50, int(len(lines) * ratio))
-            if len(lines) > keep:
-                files[path] = "\n".join(lines[:keep])
-                files[path] += "\n\n" + MSG_BUDGET_TRUNC
-
+    budget = MAX_TOTAL_SOURCE_CHARS
+    for path, (_, oid) in sorted(entries(tp_dir, os.environ["HEAD_SHA"]).items()):
+        if Path(path).suffix not in {".c", ".h", ".l", ".y"}:
+            continue
+        if any(p in path for p in ("lex.yy.c", ".tab.c", ".tab.h")):
+            continue
+        raw = git_bytes("cat-file", "blob", oid).decode(errors="replace")
+        lines = raw.splitlines()
+        content = "\n".join(lines[:MAX_FILE_LINES])
+        if len(lines) > MAX_FILE_LINES:
+            content += "\n" + MSG_FILE_TRUNC.format(lines=MAX_FILE_LINES, total=len(lines))
+        if len(content) > budget:
+            content = content[:budget] + "\n" + MSG_BUDGET_TRUNC
+        files[path] = content
+        budget -= min(len(content), budget)
+        if budget <= 0:
+            break
     return files
 
 
@@ -107,10 +88,11 @@ def is_excluded(name: str, email: str, excluded: set) -> bool:
 
 
 def collect_readme(tp_dir: str) -> str:
-    readme = Path(tp_dir) / "README.md"
-    if readme.exists():
-        return readme.read_text(errors="replace")
-    return "*(README.md no encontrado)*"
+    from local_receipt import blob
+    try:
+        return blob(os.environ["HEAD_SHA"], tp_dir + "/README.md").decode(errors="replace")[:30000]
+    except subprocess.CalledProcessError:
+        return "*(README.md no encontrado)*"
 
 
 def collect_quality_report() -> str:
@@ -125,7 +107,7 @@ def collect_quality_report() -> str:
     path = Path(path_str)
     if not path.exists():
         return ""
-    return path.read_text(errors="replace")
+    return path.read_text(errors="replace")[:20000]
 
 
 # ---------------------------------------------------------------------------
@@ -330,231 +312,86 @@ def build_prompt(tp_dir: str, rubric: str, source_files: dict,
     return f"{system}\n\n---\n\n{data_section}\n\n---\n\n{output_template}"
 
 
-# ---------------------------------------------------------------------------
-# Llamada a la API con reintentos
-# ---------------------------------------------------------------------------
-MAX_RETRIES = 3
-RETRY_DELAY_SECONDS = 60
+def generate_report(prompt, client=None):
+    """One request, no SDK retries, hard wall-clock deadline including response parsing."""
+    if client is None:
+        import anthropic
+        client = anthropic.Anthropic(api_key=os.environ["SSL_ANTHROPIC_API_KEY"],
+                                     timeout=180.0, max_retries=0)
+    def expired(signum, frame):
+        raise TimeoutError("La revisión superó los 180 segundos.")
+    previous = signal.signal(signal.SIGALRM, expired)
+    signal.alarm(180)
+    try:
+        response = client.messages.create(model=MODEL, max_tokens=MAX_TOKENS_OUTPUT,
+                                          messages=[{"role": "user", "content": prompt}])
+        if response.stop_reason != "end_turn":
+            raise ValueError(f"Respuesta incompleta ({response.stop_reason}); no consume la devolución.")
+        text = "\n".join(block.text for block in response.content if block.type == "text").strip()
+        if not text:
+            raise ValueError("Respuesta vacía; no consume la devolución.")
+        usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
+        return text, usage
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, previous)
 
 
-def call_llm_with_retries(client, prompt: str) -> str:
-    """
-    Llama a la API de Anthropic con hasta MAX_RETRIES intentos.
-    Espera RETRY_DELAY_SECONDS entre intentos en caso de error transitorio
-    (rate limit, error de servidor, timeout).
-    Lanza la excepción final si todos los intentos fallan.
-    """
-    last_exc = None
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            print(f"   Intento {attempt}/{MAX_RETRIES}...")
-            response = client.messages.create(
-                model=MODEL,
-                max_tokens=MAX_TOKENS_OUTPUT,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            return response
-        except anthropic.AuthenticationError as e:
-            # API key inválida — no tiene sentido reintentar
-            raise RuntimeError(
-                "API key de Anthropic inválida o faltante. "
-                "Verificá el secret ANTHROPIC_API_KEY en el repositorio."
-            ) from e
-        except (anthropic.RateLimitError, anthropic.APIStatusError,
-                anthropic.APIConnectionError, anthropic.APITimeoutError) as e:
-            last_exc = e
-            if attempt < MAX_RETRIES:
-                print(f"   ⚠️  Error transitorio ({type(e).__name__}): {e}")
-                print(f"   Reintentando en {RETRY_DELAY_SECONDS}s...")
-                time.sleep(RETRY_DELAY_SECONDS)
-            else:
-                print(f"   ❌ Falló en todos los {MAX_RETRIES} intentos.")
-    raise RuntimeError(
-        f"La API de Anthropic falló tras {MAX_RETRIES} intentos. "
-        f"Último error: {last_exc}"
-    ) from last_exc
+def review_once(ledger, branch, pr, head, generation, force, generate, publish):
+    from review_state import report_record
+    state = ledger.read(branch)
+    if state and (not force or any(r["id"] == generation for r in state["reports"])):
+        publish(state)
+        return "reused"
+    report, usage = generate()
+    record = report_record(branch, pr, head, report, generation, usage=usage, model=MODEL, manual=force)
+    state = ledger.save(branch, record)
+    # Save first. A comment/API error must never cause another paid call on retry.
+    publish(state)
+    return "generated"
 
 
-# Marcador HTML invisible que identifica el comentario del bot en el PR.
-# Permite encontrarlo y actualizarlo en lugar de crear uno nuevo en cada push.
-LLM_REVIEW_MARKER = "<!-- ssl-llm-review -->"
-
-
-# ---------------------------------------------------------------------------
-# Publicación / actualización del comentario en el PR
-# ---------------------------------------------------------------------------
-def _gh_headers(token: str) -> dict:
-    return {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github.v3+json",
-    }
-
-
-def find_bot_comment(pr_number: str, repo: str, token: str) -> str | None:
-    """
-    Busca el comentario del bot (contiene LLM_REVIEW_MARKER) en el PR.
-    Devuelve el ID del comentario como string, o None si no existe.
-    Pagina automáticamente en caso de PRs con muchos comentarios.
-    """
-    headers = _gh_headers(token)
-    page = 1
-    while True:
-        url = (f"https://api.github.com/repos/{repo}/issues"
-               f"/{pr_number}/comments")
-        r = requests.get(url, headers=headers,
-                         params={"per_page": 100, "page": page}, timeout=30)
-        if r.status_code != 200:
-            return None
-        comments = r.json()
-        if not comments:
-            break
-        for c in comments:
-            if LLM_REVIEW_MARKER in c.get("body", ""):
-                return str(c["id"])
-        if len(comments) < 100:
-            break
-        page += 1
-    return None
-
-
-def upsert_pr_comment(pr_number: str, repo: str, token: str,
-                      body: str) -> None:
-    """
-    Actualiza el comentario del bot si ya existe; si no, lo crea.
-    Siempre incluye LLM_REVIEW_MARKER al final para poder identificarlo.
-    """
-    marked_body = f"{body}\n{LLM_REVIEW_MARKER}"
-    headers = _gh_headers(token)
-
-    comment_id = find_bot_comment(pr_number, repo, token)
-    if comment_id:
-        url = (f"https://api.github.com/repos/{repo}"
-               f"/issues/comments/{comment_id}")
-        r = requests.patch(url, headers=headers,
-                           json={"body": marked_body}, timeout=30)
-        if r.status_code == 200:
-            print(f"✅ Comentario actualizado en PR #{pr_number} "
-                  f"(id: {comment_id})")
-        else:
-            print(f"❌ Error al actualizar comentario: HTTP {r.status_code}")
-            print(r.text)
-            sys.exit(1)
-    else:
-        url = (f"https://api.github.com/repos/{repo}"
-               f"/issues/{pr_number}/comments")
-        r = requests.post(url, headers=headers,
-                          json={"body": marked_body}, timeout=30)
-        if r.status_code == 201:
-            print(f"✅ Comentario publicado en PR #{pr_number}")
-        else:
-            print(f"❌ Error al publicar comentario: HTTP {r.status_code}")
-            print(r.text)
-            sys.exit(1)
-
-
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
 def main():
-    if len(sys.argv) < 3:
-        print("Uso: llm_review.py <tp_dir> <rubric_file>")
-        print("Ejemplo: llm_review.py TP1 .github/rubrics/tp1_rubric.md")
-        sys.exit(1)
-
-    tp_dir = sys.argv[1]
-    rubric_file = sys.argv[2]
-
-    # Validar variables de entorno
-    required_env = [
-        "ANTHROPIC_API_KEY", "GITHUB_TOKEN", "PR_NUMBER",
-        "GITHUB_REPOSITORY", "BASE_SHA", "HEAD_SHA",
-    ]
-    env = {k: os.environ.get(k, "") for k in required_env}
-    missing = [k for k, v in env.items() if not v]
-    if missing:
-        print(f"❌ Variables de entorno faltantes: {', '.join(missing)}")
-        sys.exit(1)
-
-    # Recolectar datos
-    print(f"📁 Recolectando archivos de {tp_dir}...")
-    source_files = collect_source_files(tp_dir)
-    print(f"   {len(source_files)} archivos encontrados: {list(source_files.keys())}")
-
-    total_chars = sum(len(c) for c in source_files.values())
-    print(f"   Total de caracteres de código: {total_chars:,}")
-
-    readme = collect_readme(tp_dir)
-
-    print(f"📋 Leyendo rúbrica: {rubric_file}")
-    try:
-        rubric = Path(rubric_file).read_text(errors="replace")
-    except FileNotFoundError:
-        print(f"❌ No se encontró el archivo de rúbrica: {rubric_file}")
-        sys.exit(1)
-
-    excluded = load_excluded_authors()
-    if excluded:
-        print(f"🚫 Autores excluidos del análisis: {sorted(excluded)}")
-
-    base_sha = env["BASE_SHA"]
-    head_sha = env["HEAD_SHA"]
-    print(f"🔍 Recolectando estadísticas git ({base_sha[:7]}..{head_sha[:7]})...")
-    git_stats = collect_git_stats(base_sha, head_sha, tp_dir, excluded)
-    print(f"   Commits de alumnos: {git_stats['total_commits']}")
-    if int(git_stats["excluded_count"]) > 0:
-        print(f"   Commits de docentes excluidos: {git_stats['excluded_count']}")
-
-    quality_report = collect_quality_report()
-    if quality_report:
-        print("📊 Reporte de calidad cargado (clang-format + cppcheck)")
-    else:
-        print("📊 Reporte de calidad no disponible (se omite del prompt)")
-
-    # Llamar a la API (con reintentos)
-    print(f"🤖 Llamando a {MODEL} (hasta {MAX_RETRIES} intentos)...")
-    prompt = build_prompt(tp_dir, rubric, source_files, readme, git_stats,
-                          quality_report)
-
-    client = anthropic.Anthropic(api_key=env["ANTHROPIC_API_KEY"])
-    try:
-        response = call_llm_with_retries(client, prompt)
-    except RuntimeError as e:
-        # Todos los reintentos fallaron — publicar comentario de error en el PR
-        error_body = (
-            f"## Revisión Automática — {tp_dir}\n\n"
-            f"> ⚠️ La revisión LLM no pudo completarse.\n\n"
-            f"**Error:** `{e}`\n\n"
-            f"El docente puede re-ejecutar la revisión manualmente desde "
-            f"[Actions → Revisión LLM]"
-            f"(../../actions/workflows/llm_review.yml) "
-            f"usando **workflow_dispatch**.\n\n"
-            f"---\n*Revisión generada automáticamente — orientativa.*"
-        )
-        print(f"❌ {e}")
-        print("💬 Publicando comentario de error en el PR...")
-        upsert_pr_comment(
-            env["PR_NUMBER"],
-            env["GITHUB_REPOSITORY"],
-            env["GITHUB_TOKEN"],
-            error_body,
-        )
-        sys.exit(1)
-
-    comment = response.content[0].text
-    usage = response.usage
-    cost_usd = (usage.input_tokens * 3 + usage.output_tokens * 15) / 1_000_000
-    print(f"   Tokens: {usage.input_tokens:,} input / {usage.output_tokens:,} output")
-    print(f"   Costo estimado: ~${cost_usd:.4f} USD")
-
-    # Publicar o actualizar comentario
-    print(f"💬 Publicando/actualizando comentario en PR #{env['PR_NUMBER']}...")
-    upsert_pr_comment(
-        env["PR_NUMBER"],
-        env["GITHUB_REPOSITORY"],
-        env["GITHUB_TOKEN"],
-        comment,
-    )
+    from local_receipt import blob, validate
+    from review_state import GitHub, Ledger, is_codeowner, publish_saved, validate_branch
+    from submission_gate import fetch_shas
+    gh = GitHub()
+    pr_number = int(os.environ["PR_NUMBER"])
+    pr = gh.api("GET", f"pulls/{pr_number}")
+    branch = pr["head"]["ref"]
+    tp = validate_branch(branch)
+    head, base = os.environ["HEAD_SHA"], pr["base"]["sha"]
+    if pr["state"] != "open" or pr["base"]["ref"] != "main":
+        raise ValueError("La entrega ya no es un PR abierto a main.")
+    if (pr["head"].get("repo") or {}).get("full_name", "").lower() != gh.repo.lower():
+        raise ValueError("La rama debe pertenecer al mismo repositorio.")
+    if pr["head"]["sha"] != head:
+        print("Hay un commit nuevo; no se evalúa una versión reemplazada antes de iniciar la llamada.")
+        return
+    fetch_shas(base, head)
+    manual = os.environ["GITHUB_EVENT_NAME"] == "workflow_dispatch"
+    force = os.environ.get("FORCE_REVIEW") == "true"
+    if manual or force:
+        if not manual or os.environ["GITHUB_REF"] != "refs/heads/main":
+            raise ValueError("Reevaluación solo mediante workflow_dispatch desde main.")
+        if not is_codeowner(blob(base, ".github/CODEOWNERS").decode(), os.environ["GITHUB_TRIGGERING_ACTOR"]):
+            raise ValueError("El usuario que inició esta ejecución no es CODEOWNER.")
+    validate(tp, head, base)
+    os.environ["BASE_SHA"] = base
+    rubric = Path(f".github/rubrics/{tp.lower()}_rubric.md").read_text()
+    def generate():
+        prompt = build_prompt(tp, rubric, collect_source_files(tp), collect_readme(tp),
+                              collect_git_stats(base, head, tp, load_excluded_authors()), collect_quality_report())
+        return generate_report(prompt)
+    result = review_once(Ledger(gh), branch, pr_number, head, os.environ["GITHUB_RUN_ID"], force,
+                         generate, lambda state: publish_saved(gh, branch, pr_number, state))
+    print(f"Revisión: {result}. Registro y reporte en ssl-evaluaciones.")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as error:
+        # Exception bodies from providers can contain submitted data; keep logs concise.
+        print(f"El job no finalizó: {type(error).__name__}. Una devolución ya guardada no se vuelve a generar al reintentar.")
+        raise SystemExit(1)

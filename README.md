@@ -27,3 +27,7 @@ sobre la rama `main`**.
 | ###.###-# | Apellido(s) | Nombre(s) | [@ejemplo](https://github.com/ejemplo) | ejemplo@frba.utn.edu.ar          |
 | ###.###-# | Apellido(s) | Nombre(s) | [@ejemplo](https://github.com/ejemplo) | ejemplo@frba.utn.edu.ar          |
 | ###.###-# | Apellido(s) | Nombre(s) | [@ejemplo](https://github.com/ejemplo) | ejemplo@frba.utn.edu.ar          |
+
+### Tests y entrega
+
+Antes de abrir o actualizar el PR, sigan la [guía de tests locales y entrega](ENTREGAS.md).

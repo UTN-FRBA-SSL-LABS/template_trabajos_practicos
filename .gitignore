@@ -21,6 +21,12 @@
 !/.clang-format
 !/.pre-commit-config.yaml
 
+# Constancias locales de las entregas (se incluyen en el commit)
+!TP1/.verificacion-local.json
+!TP2/.verificacion-local.json
+!TP3/.verificacion-local.json
+!TP4/.verificacion-local.json
+
 # Log files
 *.log
 

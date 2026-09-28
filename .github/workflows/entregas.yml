@@ -1,0 +1,173 @@
+name: Entregas SSL
+
+# Control logic always comes from main. Student code executes only in the tests
+# job, on a separate runner, with a read-only token and no provider secret/cache.
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Número de PR abierto a main
+        type: string
+        required: true
+      force_review:
+        description: Solicitar otra devolución completa (solo CODEOWNERS)
+        type: boolean
+        default: false
+
+permissions: {}
+
+jobs:
+  gate:
+    name: Verificación previa
+    if: github.repository != 'UTN-FRBA-SSL-LABS/template_trabajos_practicos'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: write # migración de devoluciones históricas al registro
+      pull-requests: write
+      statuses: write
+    outputs:
+      eligible: ${{ steps.gate.outputs.eligible }}
+      tp: ${{ steps.gate.outputs.tp }}
+      branch: ${{ steps.gate.outputs.branch }}
+      pr: ${{ steps.gate.outputs.pr }}
+      head: ${{ steps.gate.outputs.head }}
+      base: ${{ steps.gate.outputs.base }}
+      force: ${{ steps.gate.outputs.force }}
+      needs_llm: ${{ steps.gate.outputs.needs_llm }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - id: gate
+        name: Verificar rama, archivos, constancia y registro
+        run: python3 .github/scripts/submission_gate.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REQUEST_PR: ${{ inputs.pr_number }}
+          FORCE_REVIEW: ${{ inputs.force_review }}
+
+  tests:
+    name: Compilación, tests y calidad
+    needs: gate
+    if: needs.gate.outputs.eligible == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+    concurrency:
+      group: ssl-tests-${{ github.repository }}-${{ needs.gate.outputs.pr }}
+      cancel-in-progress: true
+    steps:
+      - name: Herramientas oficiales
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          path: control
+          persist-credentials: false
+      - name: Código a verificar
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.gate.outputs.head }}
+          path: entrega
+          persist-credentials: false
+      - name: Dependencias
+        run: bash control/.github/scripts/apt-install.sh build-essential flex libfl-dev bison libbison-dev clang-format cppcheck cpplint
+        env:
+          APT_COMMAND_TIMEOUT: 60s
+          APT_RETRIES: 1
+          APT_LOCK_TIMEOUT: 10
+      - name: Compilación limpia y suite oficial
+        working-directory: entrega
+        run: python3 ../control/.github/scripts/local_receipt.py "$TP" --ci
+        env:
+          TP: ${{ needs.gate.outputs.tp }}
+      - name: Calidad (informativo)
+        if: success() || failure()
+        continue-on-error: true
+        working-directory: entrega
+        run: python3 ../control/.github/scripts/quality_report.py "$TP"
+        env:
+          TP: ${{ needs.gate.outputs.tp }}
+      - uses: actions/upload-artifact@v7
+        if: success() || failure()
+        continue-on-error: true
+        with:
+          name: quality-${{ github.run_id }}-${{ github.run_attempt }}
+          path: entrega/quality-report.md
+          retention-days: 7
+
+  publish:
+    name: Publicar resultado de tests
+    needs: [gate, tests]
+    if: always() && needs.gate.result == 'success' && needs.gate.outputs.eligible == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      pull-requests: write
+      statuses: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          name: quality-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .quality
+      - run: python3 .github/scripts/publish_checks.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ needs.gate.outputs.pr }}
+          HEAD_SHA: ${{ needs.gate.outputs.head }}
+          TEST_RESULT: ${{ needs.tests.result }}
+
+  review:
+    name: Devolución LLM
+    needs: [gate, tests]
+    if: needs.tests.result == 'success' && needs.gate.outputs.needs_llm == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Must be configured before rollout: only main can access this environment;
+    # the old repository-level ANTHROPIC_API_KEY must then be removed.
+    environment: ssl-llm
+    permissions:
+      contents: write
+      pull-requests: write
+    # Do not cancel a paid call when a student pushes another commit. Waiting
+    # runs recheck the ledger under this lock before contacting the provider.
+    concurrency:
+      group: ssl-review-${{ github.repository }}-${{ needs.gate.outputs.branch }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          name: quality-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .quality
+      - name: Instalar cliente
+        run: |
+          python3 -m venv "$RUNNER_TEMP/ssl-llm-venv"
+          timeout --signal=TERM --kill-after=5s 45s "$RUNNER_TEMP/ssl-llm-venv/bin/pip" install --retries 0 --timeout 15 anthropic
+      - name: Evaluar o recuperar devolución guardada
+        run: '"$RUNNER_TEMP/ssl-llm-venv/bin/python" .github/scripts/llm_review.py'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SSL_ANTHROPIC_API_KEY: ${{ secrets.SSL_ANTHROPIC_API_KEY }}
+          PR_NUMBER: ${{ needs.gate.outputs.pr }}
+          HEAD_SHA: ${{ needs.gate.outputs.head }}
+          BASE_SHA: ${{ needs.gate.outputs.base }}
+          FORCE_REVIEW: ${{ needs.gate.outputs.force }}
+          QUALITY_REPORT_PATH: .quality/quality-report.md
