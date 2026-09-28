@@ -8,6 +8,10 @@ Se reutiliza el secreto ANTHROPIC_API_KEY existente. No se deben ejecutar los sc
 `sync_student_workflows.sh` ni `restore_branch_protection.sh` para este cambio:
 no contemplan el nuevo circuito ni la preservación selectiva de configuraciones.
 
+La secuencia para trasladarlo a los repositorios existentes está en
+[PLAN_DISTRIBUCION.md](PLAN_DISTRIBUCION.md). El destino es main de cada repositorio;
+publicar en el template no actualiza automáticamente esas copias.
+
 ## Circuito y límites
 
 `entregas.yml` reemplaza los diez workflows anteriores. La lógica se toma de
