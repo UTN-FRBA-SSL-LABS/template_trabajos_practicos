@@ -12,6 +12,17 @@ La secuencia para trasladarlo a los repositorios existentes está en
 [PLAN_DISTRIBUCION.md](PLAN_DISTRIBUCION.md). El destino es main de cada repositorio;
 publicar en el template no actualiza automáticamente esas copias.
 
+Cada TP incluye `make verificar` (desde la raíz, `make -C TPN verificar`). El
+comando compila automáticamente una herramienta docente escrita en C y ejecuta
+la suite oficial sobre una copia limpia del índice de Git. La verificación
+local obligatoria no requiere Python. Los scripts Python de CI se ejecutan en
+GitHub Actions; la instalación opcional de pre-commit es independiente.
+
+La constancia usa el esquema 2: nombres, modos e identificadores de objetos Git
+para vincular exactamente los contenidos preparados y el verificador oficial.
+Es compatible con checkouts CRLF. Una constancia de la versión anterior debe
+regenerarse con `make verificar`; no se modifica el registro de devoluciones LLM.
+
 ## Circuito y límites
 
 `entregas.yml` reemplaza los diez workflows anteriores. La lógica se toma de
@@ -125,7 +136,8 @@ python3 -m unittest discover -s ci_tests -v
 
 La suite usa repositorios temporales, compila un programa C de prueba y ejecuta
 la suite real del laboratorio. Simula las respuestas del LLM y la persistencia
-de GitHub. Verifica constancias obsoletas, cambios de documentación, CRLF,
+de GitHub. También prueba los cuatro GNUmakefile con Python bloqueado en PATH,
+el verificador C y su timeout. Verifica constancias obsoletas, cambios de documentación, CRLF,
 errores de compilación/tests, permisos docentes, reportes incompletos, PR nuevos
 y recuperación tras fallos de comentarios. No contiene claves ni invoca APIs
 externas.

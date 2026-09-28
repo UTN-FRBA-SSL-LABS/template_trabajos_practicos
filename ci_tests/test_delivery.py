@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import types
 import unittest
 
@@ -28,7 +29,8 @@ class ReceiptTests(unittest.TestCase):
         self.git("config", "user.name", "Tests")
         for folder in [".github/scripts", "TP1/src", "TP1/tests/input", "TP1/tests/output/expected"]:
             Path(folder).mkdir(parents=True)
-        shutil.copy(ROOT / receipt.RECIPE, receipt.RECIPE)
+        for path in receipt.RECIPES:
+            shutil.copy(ROOT / path, path)
         shutil.copy(ROOT / "TP1/tests/run_testsuite.sh", "TP1/tests/run_testsuite.sh")
         shutil.copy(ROOT / "TP1/tests/colors.sh", "TP1/tests/colors.sh")
         Path("TP1/tests/settings.sh").write_text("input_extension='.txt'\nmin_percentage_matching_per_test=80\nmin_average_percentage_over_all_test=80\nmin_quantity_test=3\npass_tests=1\n")
@@ -36,7 +38,8 @@ class ReceiptTests(unittest.TestCase):
             Path(f"TP1/tests/input/test_{n}.txt").write_text("case\n")
             Path(f"TP1/tests/output/expected/test_{n}.txt").write_text("OK\n")
         Path("TP1/src/main.c").write_text('#include <stdio.h>\nint main(void) { puts("OK"); return 0; }\n')
-        Path("TP1/GNUmakefile").write_text("all:\n\tmkdir -p bin\n\tcc src/main.c -o bin/tp1\n")
+        Path("TP1/GNUmakefile").write_text("all:\n\tmkdir -p bin\n\tcc src/main.c -o bin/tp1\n\n"
+                                         "verificar:\n\t@sh ../.github/scripts/verificar_local.sh TP1\n")
         Path("TP1/README.md").write_text("Descripción\n")
         Path(".gitattributes").write_text("*.c text eol=lf\n*.sh text eol=lf\n")
         Path(".gitignore").write_text("bin/\nobj/\n*.pyc\n__pycache__/\n")
@@ -52,7 +55,7 @@ class ReceiptTests(unittest.TestCase):
         return subprocess.check_output(["git", *args], stderr=subprocess.DEVNULL, text=True)
 
     def run_local(self, success=True):
-        result = subprocess.run([sys.executable, str(ROOT / receipt.RECIPE), "TP1"],
+        result = subprocess.run(["make", "-C", "TP1", "verificar"],
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         self.assertEqual(result.returncode == 0, success, result.stdout[-2000:])
         return result
@@ -66,7 +69,7 @@ class ReceiptTests(unittest.TestCase):
         self.assertFalse(Path("TP1/bin").exists(), "Clean build must not reuse working-tree binaries")
         self.commit_receipt()
         receipt.validate("TP1", "HEAD", self.base)
-        result = subprocess.run([sys.executable, str(ROOT / receipt.RECIPE), "TP1", "--ci"], capture_output=True)
+        result = subprocess.run([sys.executable, str(ROOT / ".github/scripts/local_receipt.py"), "TP1", "--ci"], capture_output=True)
         self.assertEqual(result.returncode, 0, result.stdout[-1000:])
 
     def test_docs_do_not_invalidate_but_source_and_build_inputs_do(self):
@@ -140,6 +143,59 @@ class ReceiptTests(unittest.TestCase):
     def test_local_timeout_terminates_process_group(self):
         with self.assertRaises(subprocess.TimeoutExpired):
             receipt.run_bounded(["sh", "-c", "sleep 30 & wait"], self.repo, 0.1)
+
+    def test_native_receipt_matches_ci_with_spaces_unicode_and_ignored_files(self):
+        for path in ["src/archivo con espacios.txt", 'src/comillas"y\\barra.txt', "src/área.txt", "src/salto\nlinea.txt",
+                     "src/NOTAS.MD", "src/entorno.code-workspace", "tests/output/actual.txt",
+                     "tests/output/expected/extra_clean.txt", "tests/output/expected/subdir/ignored.txt"]:
+            file = Path("TP1") / path
+            file.parent.mkdir(parents=True, exist_ok=True)
+            file.write_text("contenido\n")
+        self.git("add", "TP1")
+        self.run_local()
+        value = json.loads(Path("TP1/.verificacion-local.json").read_text())
+        self.assertEqual(value["inputs"], receipt.fingerprint("TP1"))
+        self.commit_receipt()
+        receipt.validate("TP1", "HEAD", self.base)
+
+    def test_native_timeout_invalidates_receipt_and_kills_test_processes(self):
+        self.run_local()
+        Path("TP1/GNUmakefile").write_text("all:\n\tsleep 30 & echo $$! > ../sleeper.pid; wait\n")
+        self.git("add", "TP1/GNUmakefile")
+        executable = self.repo / "fast-verifier"
+        subprocess.run(["cc", "-std=c11", "-DSSL_TEST_TIMEOUT=1", str(ROOT / receipt.RECIPES[0]),
+                        "-o", str(executable)], check=True)
+        export = self.repo / "export"
+        started = time.monotonic()
+        result = subprocess.run([str(executable), "TP1", str(export)], capture_output=True, text=True, timeout=10)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertLess(time.monotonic() - started, 8)
+        self.assertIn("Se agotó el tiempo", result.stderr)
+        self.assertEqual(json.loads(Path("TP1/.verificacion-local.json").read_text())["result"], "failed")
+        pid = (export / "sleeper.pid").read_text().strip()
+        state = subprocess.run(["ps", "-o", "stat=", "-p", pid], capture_output=True, text=True).stdout.strip()
+        self.assertTrue(not state or state.startswith("Z"), state)
+
+    def test_each_tp_makefile_verifies_without_python(self):
+        blocked = self.repo / "blocked-python"
+        blocked.mkdir()
+        for name in ["python", "python3"]:
+            launcher = blocked / name
+            launcher.write_text('#!/bin/sh\necho "Unexpected Python invocation" >&2\nexit 99\n')
+            launcher.chmod(0o755)
+        for n in range(1, 5):
+            tp = f"TP{n}"
+            with self.subTest(tp=tp):
+                if n > 1:
+                    shutil.copytree("TP1", tp, ignore=shutil.ignore_patterns("mkframework", ".verificacion-local.json"))
+                shutil.copy(ROOT / tp / "GNUmakefile", Path(tp) / "GNUmakefile")
+                shutil.copytree(ROOT / tp / "mkframework", Path(tp) / "mkframework")
+                self.git("add", tp)
+                result = subprocess.run(["make", "-C", tp, "verificar"], capture_output=True, text=True,
+                                        env={**os.environ, "PATH": str(blocked) + os.pathsep + os.environ["PATH"]})
+                self.assertEqual(result.returncode, 0, result.stdout[-1500:] + result.stderr[-1500:])
+                actual = json.loads((Path(tp) / ".verificacion-local.json").read_text())
+                self.assertEqual(actual["inputs"], receipt.fingerprint(tp))
 
 
 class MemoryLedger:

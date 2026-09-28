@@ -64,14 +64,19 @@ suponer que se puede fusionar automáticamente ni borrar todas las restricciones
 - Actualizar `.github/scripts/llm_review.py`; agregar `local_receipt.py`,
   `review_state.py`, `submission_gate.py`, `publish_checks.py` y `quality_report.py`.
   Verificar que esté disponible `apt-install.sh`, con la versión compatible.
-- Agregar `verificar_tp.py`, `ENTREGAS.md` y la guía docente. Las pruebas de
+- Agregar `.github/scripts/local_verifier.c` y `verificar_local.sh`. Incorporar
+  el target `verificar` en el GNUmakefile de **cada TP (TP1 a TP4)**, conservando
+  el resto de sus reglas. Eliminar `verificar_tp.py` si proviene de la versión anterior.
+- Agregar `ENTREGAS.md` y la guía docente. Las pruebas de
   infraestructura pueden distribuirse junto con estos scripts para reproducibilidad.
 - Incorporar las cuatro excepciones de `.gitignore` para las constancias locales,
   sin reemplazar las reglas propias del grupo.
+- Incorporar en `.gitattributes` la excepción de indentación para
+  `.github/scripts/local_verifier.c`, que sigue el formato docente con espacios.
 - Integrar el aviso del template de PR y los enlaces de documentación con los
   textos existentes; conservar cualquier sección particular de cada grupo.
 
-Se conservan soluciones, GNUmakefile, mkframework, pruebas oficiales, rúbricas,
+Se conservan soluciones, reglas de compilación existentes, mkframework, pruebas oficiales, rúbricas,
 prompts, configuración docente, CODEOWNERS, integrantes y README personalizado.
 Una variante incompatible se revisa individualmente; no se la pisa con el template.
 No se cambian miembros, equipos, permisos ni secretos como parte de esta copia.
@@ -88,7 +93,7 @@ git merge origin/main
 ```
 
 Si hay conflictos, los resuelven conservando su implementación. Después siguen
-[ENTREGAS.md](ENTREGAS.md): preparar el código, ejecutar `python3 verificar_tp.py TP3`,
+[ENTREGAS.md](ENTREGAS.md): preparar el código, ejecutar `make -C TP3 verificar`,
 agregar la constancia al commit y hacer push. No se requiere repetir tests por
 cada commit intermedio si los contenidos verificados no cambiaron.
 

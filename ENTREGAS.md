@@ -12,7 +12,7 @@ Ejemplo para `TP3`, trabajando en la rama `TP_3`, desde la raíz del repositorio
 
 ```sh
 git add TP3
-python3 verificar_tp.py TP3
+make -C TP3 verificar
 git add TP3/.verificacion-local.json
 git commit -m "feat: completar entrega TP3 con tests locales"
 git push origin TP_3
@@ -21,9 +21,21 @@ git push origin TP_3
 Luego abran o actualicen el PR de `TP_3` hacia `main`. Para los otros trabajos,
 reemplacen `TP3` y `TP_3` por el número correspondiente.
 
-Necesitan Python 3, Git, `make`, un compilador C y las herramientas de su TP
+Dentro de la carpeta del TP pueden usar directamente `make verificar`.
+El comando está disponible en los cuatro trabajos:
+
+| Trabajo | Comando desde la raíz |
+| --- | --- |
+| TP1 | `make -C TP1 verificar` |
+| TP2 | `make -C TP2 verificar` |
+| TP3 | `make -C TP3 verificar` |
+| TP4 | `make -C TP4 verificar` |
+
+Necesitan Git, `make`, un compilador C disponible como `cc` y las herramientas de su TP
 (Flex/Bison cuando corresponda), además de los comandos Unix utilizados por la
-suite. En Windows, ejecuten estos pasos dentro de WSL.
+suite. En Windows, ejecuten estos pasos dentro de WSL. No necesitan instalar ni
+ejecutar Python para esta verificación. Programan la solución del TP en C y usan
+Flex/Bison cuando la consigna lo requiere; la constancia se genera automáticamente.
 
 El verificador toma los archivos preparados mediante `git add`, arma una copia
 limpia temporal, compila y ejecuta la suite oficial con los criterios del TP.

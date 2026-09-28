@@ -5,6 +5,10 @@ automáticamente cada vez que hacés `git commit`, *antes* de que el commit se
 registre. Si alguno detecta un problema, el commit se cancela y podés ver qué
 hay que corregir.
 
+Esta configuración es opcional y algunas de sus herramientas usan Python.
+La verificación obligatoria de cada TP se realiza con `make verificar`, sin
+Python ni instalación de estos hooks. Ver [ENTREGAS.md](ENTREGAS.md).
+
 Es la misma idea que un CI/CD (como los Actions de GitHub), pero en tu máquina
 y de forma inmediata, sin necesidad de hacer push.
 
@@ -148,4 +152,4 @@ int tabla[3][3] = {{1,0,0},{0,1,0},{0,0,1}};
 Los hooks no reemplazan la suite del TP. Antes del push de una entrega, sigan
 [ENTREGAS.md](ENTREGAS.md) para generar la constancia local. Si un hook modifica
 el código después de verificarlo, vuelvan a hacer `git add` y a ejecutar
-`python3 verificar_tp.py TPN` antes de completar el commit.
+`make -C TPN verificar` antes de completar el commit.

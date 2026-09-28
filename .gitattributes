@@ -18,6 +18,8 @@
 # C/C++ files
 *.c text eol=lf diff=cpp whitespace=trailing-space,space-before-tab,blank-at-eol,blank-at-eof,indent-with-non-tab,incomplete-line
 *.h text eol=lf diff=cpp whitespace=trailing-space,space-before-tab,blank-at-eol,blank-at-eof,indent-with-non-tab,incomplete-line
+# La herramienta docente usa la indentación con espacios de .clang-format.
+/.github/scripts/local_verifier.c whitespace=trailing-space,space-before-tab,blank-at-eol,blank-at-eof,incomplete-line
 *.i text eol=lf diff=cpp whitespace=trailing-space,space-before-tab,blank-at-eol,blank-at-eof,indent-with-non-tab,incomplete-line
 
 # Lex files

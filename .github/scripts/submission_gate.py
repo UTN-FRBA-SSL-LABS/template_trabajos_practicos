@@ -37,7 +37,7 @@ def test_status(gh, head, state):
 
 def protected(path):
     return (path.startswith((".github/", ".agents/", ".codex/")) or
-            path in {".clang-format", "verificar_tp.py"} or
+            path == ".clang-format" or
             any(path.startswith(f"TP{n}/tests/") for n in range(1, 5)))
 
 
@@ -89,7 +89,7 @@ def main():
     except (ValueError, subprocess.SubprocessError, OSError) as error:
         gh.comment(pr_number,
             f"## Verificación previa — {tp}\n\nNo se inician compilación, tests remotos ni LLM.\n\n{error}\n\n"
-            f"Preparar los cambios con `git add {tp}`, ejecutar `python3 verificar_tp.py {tp}` y agregar "
+            f"Preparar los cambios con `git add {tp}`, ejecutar `make -C {tp} verificar` y agregar "
             f"`{tp}/.verificacion-local.json` al commit. Si cambió main, incorporarlo antes de verificar.",
             "<!-- ssl-submission-gate -->")
         raise
