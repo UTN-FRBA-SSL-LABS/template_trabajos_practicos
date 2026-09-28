@@ -72,4 +72,4 @@ $(eval $(value MKFWK_FOOTER))
 # Verificación de entrega con la suite oficial, sin Python local.
 .PHONY: verificar
 verificar:
-	@sh ../.github/scripts/verificar_local.sh TP4
+	@$(SHELL) ../.github/scripts/verificar_local.sh TP4 "$(CC)" "$(MAKE)" "$(EXEEXT)"

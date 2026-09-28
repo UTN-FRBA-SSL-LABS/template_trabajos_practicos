@@ -18,6 +18,16 @@ la suite oficial sobre una copia limpia del índice de Git. La verificación
 local obligatoria no requiere Python. Los scripts Python de CI se ejecutan en
 GitHub Actions; la instalación opcional de pre-commit es independiente.
 
+El target reutiliza `SHELL`, `CC`, `MAKE` y `EXEEXT` del framework de cada TP.
+Windows ya se detecta mediante `OS=Windows_NT` y usa `.exe`. El verificador
+tiene una implementación Win32 para compiladores MinGW y otra POSIX para
+Linux/macOS y runtimes Cygwin/MSYS. Ambas controlan los procesos hijos y su
+timeout. El lanzador convierte rutas con `cygpath` cuando el compilador produce
+binarios Windows nativos; admite rutas con espacios y nombres Unicode.
+Se mantienen las herramientas GNU que ya exigía el framework, sin imponer WSL.
+El compilador debe estar disponible como comando del entorno, respetando las
+limitaciones de rutas de `CC` que ya tiene el framework.
+
 La constancia usa el esquema 2: nombres, modos e identificadores de objetos Git
 para vincular exactamente los contenidos preparados y el verificador oficial.
 Es compatible con checkouts CRLF. Una constancia de la versión anterior debe
@@ -137,7 +147,12 @@ python3 -m unittest discover -s ci_tests -v
 La suite usa repositorios temporales, compila un programa C de prueba y ejecuta
 la suite real del laboratorio. Simula las respuestas del LLM y la persistencia
 de GitHub. También prueba los cuatro GNUmakefile con Python bloqueado en PATH,
-el verificador C y su timeout. Verifica constancias obsoletas, cambios de documentación, CRLF,
+la selección `.exe` por `Windows_NT`, compilador/Make configurables y rutas con
+espacios, además del verificador C y su timeout. Simular `Windows_NT` en macOS
+prueba la selección del ejecutable, no el runtime de Windows. La compilación
+cruzada comprueba el backend Win32, pero su ejecución integral en Windows
+debe verificarse en ese sistema antes de declarar esa plataforma validada.
+Verifica constancias obsoletas, cambios de documentación, CRLF,
 errores de compilación/tests, permisos docentes, reportes incompletos, PR nuevos
 y recuperación tras fallos de comentarios. No contiene claves ni invoca APIs
 externas.

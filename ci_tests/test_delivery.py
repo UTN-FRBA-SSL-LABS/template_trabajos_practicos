@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -191,11 +192,40 @@ class ReceiptTests(unittest.TestCase):
                 shutil.copy(ROOT / tp / "GNUmakefile", Path(tp) / "GNUmakefile")
                 shutil.copytree(ROOT / tp / "mkframework", Path(tp) / "mkframework")
                 self.git("add", tp)
-                result = subprocess.run(["make", "-C", tp, "verificar"], capture_output=True, text=True,
-                                        env={**os.environ, "PATH": str(blocked) + os.pathsep + os.environ["PATH"]})
-                self.assertEqual(result.returncode, 0, result.stdout[-1500:] + result.stderr[-1500:])
-                actual = json.loads((Path(tp) / ".verificacion-local.json").read_text())
-                self.assertEqual(actual["inputs"], receipt.fingerprint(tp))
+                for windows_names in [False, True]:
+                    with self.subTest(windows_exe=windows_names):
+                        env = {**os.environ, "PATH": str(blocked) + os.pathsep + os.environ["PATH"]}
+                        env.pop("OS", None)
+                        if windows_names:
+                            env["OS"] = "Windows_NT"
+                        result = subprocess.run(["make", "-C", tp, "verificar"], capture_output=True,
+                                                text=True, env=env)
+                        self.assertEqual(result.returncode, 0, result.stdout[-1500:] + result.stderr[-1500:])
+                        expected_program = f"./bin/{tp.lower()}" + (".exe" if windows_names else "")
+                        self.assertIn(expected_program + ": Archivo ejecutable encontrado", result.stdout)
+                        actual = json.loads((Path(tp) / ".verificacion-local.json").read_text())
+                        self.assertEqual(actual["inputs"], receipt.fingerprint(tp))
+
+    def test_verifier_uses_configured_compiler_and_make(self):
+        shutil.copy(ROOT / "TP1/GNUmakefile", "TP1/GNUmakefile")
+        shutil.copytree(ROOT / "TP1/mkframework", "TP1/mkframework")
+        self.git("add", "TP1")
+        folder = self.repo / "herramientas con espacios"
+        folder.mkdir()
+        # The existing framework expects CC in PATH (its command lookup does not
+        # quote paths containing spaces). The verifier must preserve that setup.
+        compiler, make = self.repo / "cc-del-tp", folder / "make-tp"
+        log = self.repo / "tools.log"
+        for path, command, label in [(compiler, shutil.which("cc"), "cc"), (make, shutil.which("make"), "make")]:
+            path.write_text(f'#!/bin/sh\nprintf "%s\\n" {label} >> {shlex.quote(str(log))}\n'
+                            f'exec {shlex.quote(command)} "$@"\n')
+            path.chmod(0o755)
+        result = subprocess.run(["make", "-C", "TP1", "verificar", f"CC={compiler}", f"MAKE={make}"],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout[-2000:] + result.stderr[-2000:])
+        calls = log.read_text().splitlines()
+        self.assertGreaterEqual(calls.count("cc"), 3)
+        self.assertIn("make", calls)
 
 
 class MemoryLedger:

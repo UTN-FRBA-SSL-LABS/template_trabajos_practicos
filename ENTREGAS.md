@@ -31,10 +31,13 @@ El comando está disponible en los cuatro trabajos:
 | TP3 | `make -C TP3 verificar` |
 | TP4 | `make -C TP4 verificar` |
 
-Necesitan Git, `make`, un compilador C disponible como `cc` y las herramientas de su TP
-(Flex/Bison cuando corresponda), además de los comandos Unix utilizados por la
-suite. En Windows, ejecuten estos pasos dentro de WSL. No necesitan instalar ni
-ejecutar Python para esta verificación. Programan la solución del TP en C y usan
+Usen el mismo entorno GNU con el que compilan el TP: Git, GNU Make, el compilador
+configurado en el Makefile y Flex/Bison cuando corresponda, junto con las
+herramientas de la suite. El comando respeta la configuración de cada TP.
+En Windows se usa la terminal de ese entorno (por ejemplo, MSYS2/MinGW o Cygwin).
+WSL también es una opción, pero no es obligatorio. PowerShell o CMD sin las
+herramientas GNU no reemplazan ese entorno. No necesitan instalar ni ejecutar
+Python para esta verificación. Programan la solución del TP en C y usan
 Flex/Bison cuando la consigna lo requiere; la constancia se genera automáticamente.
 
 El verificador toma los archivos preparados mediante `git add`, arma una copia

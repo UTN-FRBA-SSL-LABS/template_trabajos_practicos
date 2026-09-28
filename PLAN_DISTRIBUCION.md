@@ -66,7 +66,9 @@ suponer que se puede fusionar automáticamente ni borrar todas las restricciones
   Verificar que esté disponible `apt-install.sh`, con la versión compatible.
 - Agregar `.github/scripts/local_verifier.c` y `verificar_local.sh`. Incorporar
   el target `verificar` en el GNUmakefile de **cada TP (TP1 a TP4)**, conservando
-  el resto de sus reglas. Eliminar `verificar_tp.py` si proviene de la versión anterior.
+  el resto de sus reglas y pasando `SHELL`, `CC`, `MAKE` y `EXEEXT` como hace el
+  template. No fijar `cc`, `make` ni una extensión independiente del framework.
+  Eliminar `verificar_tp.py` si proviene de la versión anterior.
 - Agregar `ENTREGAS.md` y la guía docente. Las pruebas de
   infraestructura pueden distribuirse junto con estos scripts para reproducibilidad.
 - Incorporar las cuatro excepciones de `.gitignore` para las constancias locales,
