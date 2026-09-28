@@ -19,10 +19,6 @@ on:
 
 permissions: {}
 
-env:
-  # Set once at rollout. Earlier PRs keep their previous deliveries untouched.
-  SSL_POLICY_START: ${{ vars.SSL_POLICY_START }}
-
 jobs:
   gate:
     name: Verificación previa

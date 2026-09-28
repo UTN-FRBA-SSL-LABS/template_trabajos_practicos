@@ -12,16 +12,6 @@ MARKER = "<!-- ssl-llm-review -->"
 BOT = "github-actions[bot]"
 
 
-def is_new_submission(created_at, policy_start):
-    if not policy_start:
-        raise ValueError("Falta configurar SSL_POLICY_START con el inicio de la política para PR nuevos.")
-    created = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-    start = datetime.fromisoformat(policy_start.replace("Z", "+00:00"))
-    if created.tzinfo is None or start.tzinfo is None:
-        raise ValueError("Las fechas deben incluir zona horaria.")
-    return created >= start
-
-
 class APIError(RuntimeError):
     def __init__(self, status, method, path):
         self.status = status

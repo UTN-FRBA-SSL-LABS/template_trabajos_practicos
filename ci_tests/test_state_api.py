@@ -1,5 +1,6 @@
 import base64
 import copy
+from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
@@ -7,7 +8,7 @@ import sys
 import tempfile
 import types
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / ".github/scripts"))
@@ -109,41 +110,90 @@ class StateAPITests(unittest.TestCase):
         gh.api = lambda *args: calls.append(args)
         gh.comment(9, "report")
         self.assertEqual(calls[0][:2], ("POST", "issues/9/comments"))
-    def test_old_pr_is_out_of_scope(self):
-        self.assertFalse(state.is_new_submission("2026-09-27T23:59:59Z", "2026-09-28T00:00:00Z"))
-    def test_new_pr_and_exact_activation_are_in_scope(self):
-        self.assertTrue(state.is_new_submission("2026-09-28T00:00:00Z", "2026-09-28T00:00:00Z"))
-        self.assertTrue(state.is_new_submission("2026-10-01T00:00:00Z", "2026-09-28T00:00:00Z"))
-    def test_policy_dates_compare_instants_not_local_clock_text(self):
-        self.assertFalse(state.is_new_submission("2026-09-28T01:00:00+03:00", "2026-09-28T00:00:00Z"))
-    def test_policy_without_start_or_timezone_fails_closed(self):
-        for start in ["", "invalid", "2026-09-28T00:00:00"]:
-            with self.subTest(start=start), self.assertRaises(ValueError):
-                state.is_new_submission("2026-09-28T00:00:00Z", start)
 
-
-class TriggeringActorTests(unittest.TestCase):
-    def test_old_pr_skips_receipt_ledger_tests_and_llm(self):
+class DefaultActivationTests(unittest.TestCase):
+    @contextmanager
+    def delivery(self, saved=None, obsolete_start=None):
         pr = {"state": "open", "created_at": "2026-09-01T00:00:00Z",
               "base": {"ref": "main", "sha": "a" * 40},
               "head": {"ref": "TP_1", "sha": "b" * 40, "repo": {"full_name": "org/repo"}}}
-        calls = []
-        gh = types.SimpleNamespace(repo="org/repo", api=lambda *args: (calls.append(args) or pr))
+        gh = types.SimpleNamespace(repo="org/repo", api=Mock(return_value=pr), comment=Mock())
+        ledger = Mock()
+        ledger.read.return_value = saved
         with tempfile.TemporaryDirectory() as tmp:
             event, output = Path(tmp) / "event.json", Path(tmp) / "output"
-            event.write_text(json.dumps({"number": 1, "pull_request": pr}))
+            event.write_text(json.dumps({"number": 2, "pull_request": pr}))
             env = {"GITHUB_EVENT_PATH": str(event), "GITHUB_OUTPUT": str(output),
                    "GITHUB_EVENT_NAME": "pull_request_target", "GITHUB_RUN_ID": "123",
-                   "SSL_POLICY_START": "2026-09-28T00:00:00Z"}
-            with patch.dict(os.environ, env), patch.object(submission_gate, "GitHub", return_value=gh), \
-                 patch.object(submission_gate, "fetch_shas"), patch.object(submission_gate, "Ledger") as ledger, \
-                 patch.object(submission_gate, "validate") as validate:
-                submission_gate.main()
-                ledger.assert_not_called()
-                validate.assert_not_called()
-            self.assertEqual(output.read_text(), "eligible=false\n")
-            self.assertEqual(calls[-1][2]["description"], "PR previo a la activación: exento del circuito nuevo")
+                   "PR_NUMBER": "2", "HEAD_SHA": "b" * 40}
+            if obsolete_start is not None:
+                env["SSL_POLICY_START"] = obsolete_start
+            with patch.dict(os.environ, env, clear=True), \
+                 patch.object(submission_gate, "GitHub", return_value=gh), \
+                 patch.object(submission_gate, "fetch_shas"), \
+                 patch.object(submission_gate, "Ledger", return_value=ledger), \
+                 patch.object(submission_gate, "validate_paths"), \
+                 patch.object(submission_gate, "validate") as validate, \
+                 patch.object(submission_gate, "publish_saved") as publish:
+                yield types.SimpleNamespace(gh=gh, ledger=ledger, output=output, validate=validate, publish=publish)
 
+    def test_gate_active_without_start_and_ignores_obsolete_variable(self):
+        for start in [None, "2026-09-28T00:00:00Z", "invalid"]:
+            with self.subTest(start=start), self.delivery(obsolete_start=start) as context:
+                submission_gate.main()
+                context.ledger.read.assert_called_once_with("TP_1")
+                context.validate.assert_called_once_with("TP1", "b" * 40, "a" * 40)
+                result = context.output.read_text()
+                self.assertIn("eligible=true\n", result)
+                self.assertIn("needs_llm=true\n", result)
+                self.assertEqual(context.gh.api.call_args.args[2]["state"], "pending")
+
+    def test_saved_report_still_skips_llm_for_another_pr_on_same_branch(self):
+        saved = {"reports": [state.report_record("TP_1", 1, "c" * 40, "Reporte previo", "122")]}
+        with self.delivery(saved=saved) as context:
+            submission_gate.main()
+            context.publish.assert_called_once_with(context.gh, "TP_1", 2, saved)
+            context.validate.assert_called_once()
+            self.assertIn("eligible=true\n", context.output.read_text())
+            self.assertIn("needs_llm=false\n", context.output.read_text())
+
+    def test_gate_still_blocks_missing_receipt_without_start(self):
+        with self.delivery() as context:
+            context.validate.side_effect = ValueError("Falta constancia local")
+            with self.assertRaisesRegex(ValueError, "Falta constancia"):
+                submission_gate.main()
+            self.assertFalse(context.output.exists())
+            self.assertIn("No se inician compilación, tests remotos ni LLM", context.gh.comment.call_args.args[1])
+
+    def test_review_reuses_saved_report_without_start_or_provider_call(self):
+        import local_receipt
+        saved = {"reports": [state.report_record("TP_1", 1, "c" * 40, "Reporte previo", "122")]}
+        with self.delivery(saved=saved) as context, \
+             patch.object(state, "GitHub", return_value=context.gh), \
+             patch.object(state, "Ledger", return_value=context.ledger), \
+             patch.object(state, "publish_saved") as publish, \
+             patch.object(local_receipt, "validate") as validate, \
+             patch.object(llm_review, "generate_report") as generate:
+            llm_review.main()
+            validate.assert_called_once_with("TP1", "b" * 40, "a" * 40)
+            publish.assert_called_once_with(context.gh, "TP_1", 2, saved)
+            generate.assert_not_called()
+            context.ledger.save.assert_not_called()
+
+    def test_review_still_blocks_missing_receipt_without_start(self):
+        import local_receipt
+        with self.delivery() as context, \
+             patch.object(state, "GitHub", return_value=context.gh), \
+             patch.object(local_receipt, "validate", side_effect=ValueError("Falta constancia local")), \
+             patch.object(llm_review, "generate_report") as generate, \
+             patch.object(state, "Ledger") as ledger:
+            with self.assertRaisesRegex(ValueError, "Falta constancia"):
+                llm_review.main()
+            ledger.assert_not_called()
+            generate.assert_not_called()
+
+
+class TriggeringActorTests(unittest.TestCase):
     def test_student_cannot_rerun_teacher_manual_gate(self):
         pr = {"state": "open", "base": {"ref": "main", "sha": "a" * 40},
               "head": {"ref": "TP_1", "sha": "b" * 40, "repo": {"full_name": "org/repo"}}}

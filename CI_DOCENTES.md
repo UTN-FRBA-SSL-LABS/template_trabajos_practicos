@@ -47,23 +47,20 @@ Se conserva la validación de rama/carpeta, archivos protegidos, suite y calidad
 Como un PR de TP no puede modificar otros TPs, se elimina la compilación
 informativa redundante de todos ellos. La calidad se aplica al TP entregado.
 
-## Configuración necesaria antes de activar
+## Instalación y configuración
+
+El circuito queda activo por defecto al estar en `main` de un repositorio
+incluido en el filtro. No requiere una fecha ni una variable de activación.
 
 1. Conservar **`ANTHROPIC_API_KEY`** donde ya está configurado. No se necesita
    recuperar su valor, crear otra clave ni trasladarla a un environment.
-2. Fijar una vez la variable de Actions **`SSL_POLICY_START`** con el instante de
-   activación en UTC (ISO 8601, por ejemplo `2026-09-28T15:00:00Z`; no copiar este
-   ejemplo como fecha real). Solo los PR creados desde ese instante entran al
-   circuito nuevo. Si falta esta variable, el control se detiene sin invocar al
-   proveedor. No modificarla después para reiniciar las evaluaciones.
-3. Respaldar y publicar el circuito validado en `main`, preservando código de
+2. Respaldar y publicar el circuito validado en `main`, preservando código de
    alumnos, suites propias, integrantes, CODEOWNERS, colaboradores y ajustes.
    No reemplazar el README personalizado por el README del template.
-4. Revisar los checks requeridos: el nuevo contexto es **`SSL / Tests de entrega`**.
+3. Revisar los checks requeridos: el nuevo contexto es **`SSL / Tests de entrega`**.
    Retirar solamente los nombres reemplazados y preservar las demás protecciones.
-   El estado se publica en el SHA probado. Para un PR previo a la activación se
-   publica una exención explícita, sin afirmar que sus tests se hayan ejecutado.
-5. Verificar archivos, variable de inicio, presencia del secreto y protecciones
+   El estado se publica en el SHA probado.
+4. Verificar archivos, Actions habilitado, presencia del secreto y protecciones
    mediante API, sin iniciar Actions ni llamar al proveedor para distribuir.
 
 Por decisión del usuario, las reejecuciones de workflows históricos quedan
@@ -72,8 +69,9 @@ CODEOWNERS y el registro único se aplican al circuito nuevo; esto no impide que
 alguien con permisos de escritura cree otro workflow que utilice un secreto del
 repositorio. Se conserva el modelo de confianza indicado por el usuario.
 
-En un repositorio nuevo creado desde el template, configurar la variable de inicio
-y la clave si todavía no están disponibles. El filtro actual cubre únicamente
+En un repositorio nuevo creado desde el template, asegurar que Actions esté
+habilitado y que ANTHROPIC_API_KEY esté disponible para ese repositorio. La clave
+no se copia con los archivos del template. El filtro actual cubre únicamente
 2026 y las cuatro comisiones indicadas; excluye 052, los sufijos `-1C` y el propio
 template, cuyos PR son de mantenimiento.
 
@@ -107,10 +105,13 @@ esa rama junto con los backups de cada repositorio. Su eliminación puede quitar
 el límite; la constancia local tampoco demuestra criptográficamente que los
 tests se hayan ejecutado en el equipo del alumno.
 
-No se recorren ni migran devoluciones de PR anteriores a la activación. El
-registro se construye con las devoluciones del circuito nuevo. Desde entonces,
-cerrar un PR y crear otro de la misma rama conserva el límite y el enlace al
-reporte original, sin necesidad de consultar todos los PR históricos.
+Publicar el circuito no recorre ni reevalúa PR históricos. No hay una exención
+por fecha: un PR ya abierto entra al circuito cuando recibe un evento admitido,
+como un nuevo commit o una reapertura, y debe presentar una constancia válida.
+El registro se construye con las devoluciones del circuito nuevo; los reportes
+de workflows antiguos no se importan automáticamente. Una vez guardado el
+reporte, cerrar un PR y crear otro de la misma rama conserva el límite y el
+enlace original, sin consultar todos los PR históricos.
 
 Un timeout o caída anterior al guardado duradero no consume la devolución. Si
 el proveedor llegó a procesar una llamada que acabó en timeout, puede cobrarla:

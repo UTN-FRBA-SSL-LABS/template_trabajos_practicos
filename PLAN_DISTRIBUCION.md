@@ -25,11 +25,11 @@ Confirmar nombre e ID de cada repositorio contra el manifiesto antes de escribir
 ## Secuencia propuesta por repositorio
 
 1. Leer la versión actual de main, ramas, PR abiertos, protecciones, reglas,
-   workflows, variable de inicio y presencia de ANTHROPIC_API_KEY. Identificar
+   workflows, disponibilidad de Actions y presencia de ANTHROPIC_API_KEY. Identificar
    variantes locales y checks requeridos. No leer ni reemplazar valores de claves.
 2. Guardar un backup del historial y una copia de las configuraciones que se
    vayan a modificar. Registrar el SHA inicial de main y los IDs de los PR ya
-   abiertos. Si la política ya estaba activada, no reiniciar su fecha ni registro.
+   abiertos. Si ya existe el registro de evaluaciones, conservarlo sin reiniciarlo.
 3. Crear una rama de mantenimiento desde **el main de ese repositorio**, por
    ejemplo `codex/actualizar-entregas-2026`. Aplicar allí solo los archivos de
    infraestructura y documentación de esta versión. El resultado debe ser un
@@ -38,18 +38,16 @@ Confirmar nombre e ID de cada repositorio contra el manifiesto antes de escribir
 4. Validar localmente el diff, el YAML y los scripts. Comparar las suites oficiales
    y conservar las específicas del repositorio. No iniciar el LLM para validar
    la distribución.
-5. Fijar **SSL_POLICY_START** una sola vez, coordinada con la incorporación a main.
-   Es la fecha UTC de inicio: solo los PR creados desde allí entran al circuito
-   nuevo. No usar la fecha del commit de desarrollo ni copiar una fecha de ejemplo.
-6. Incorporar el cambio a **main** respetando las reglas vigentes. Si el repositorio
+5. Incorporar el cambio a **main** respetando las reglas vigentes. El circuito queda
+   activo por defecto, sin configurar una fecha de inicio. Si el repositorio
    exige PR y revisión docente, abrir el PR de mantenimiento y obtener esas
    aprobaciones. Donde esté permitido, una actualización directa que avance el
    historial puede evitar ejecuciones innecesarias de los workflows anteriores.
    Nunca usar force-push ni desactivar la protección completa para acelerar el lote.
-7. Adaptar únicamente los checks reemplazados al contexto **SSL / Tests de entrega**,
+6. Adaptar únicamente los checks reemplazados al contexto **SSL / Tests de entrega**,
    preservando CODEOWNERS, revisiones, restricciones de push y otras políticas.
-   Verificar por API el SHA final, archivos, variable y configuración efectiva.
-8. Registrar éxito o incidencia por repositorio. Ante diferencias imprevistas,
+   Verificar por API el SHA final, archivos y configuración efectiva.
+7. Registrar éxito o incidencia por repositorio. Ante diferencias imprevistas,
    detener ese repositorio y conservar su backup; no continuar con una copia ciega.
 
 Un PR de mantenimiento puede ser rechazado por los checks antiguos que exigen
@@ -80,8 +78,8 @@ No se cambian miembros, equipos, permisos ni secretos como parte de esta copia.
 
 ## Qué hacen los alumnos después
 
-No se modifican automáticamente sus ramas de trabajo. Antes de abrir un PR nuevo,
-incorporan main a la rama del TP, por ejemplo:
+No se modifican automáticamente sus ramas de trabajo. Antes de abrir o actualizar
+un PR, incorporan main a la rama del TP, por ejemplo:
 
 ```sh
 git fetch origin
@@ -94,11 +92,14 @@ Si hay conflictos, los resuelven conservando su implementación. Después siguen
 agregar la constancia al commit y hacer push. No se requiere repetir tests por
 cada commit intermedio si los contenidos verificados no cambiaron.
 
-Los PR anteriores al inicio quedan exentos del circuito nuevo; no se reevalúan
-ni se modifica su devolución. Para los nuevos, el registro se construye en
-`ssl-evaluaciones` dentro de cada repositorio. Una rama ya evaluada conserva el
-límite aunque cierre su PR y abra otro. Las reejecuciones de workflows históricos
-quedan fuera de este cambio, según el alcance acordado.
+La instalación no recorre ni reevalúa PR históricos. Sin filtro por fecha, un PR
+que ya estaba abierto también entra al circuito cuando recibe un nuevo commit
+o se reabre. Por eso el relevamiento previo incluye sus entregas y devoluciones:
+los reportes de workflows antiguos no se importan automáticamente al registro.
+El registro se construye en `ssl-evaluaciones` dentro de cada repositorio. Una
+rama con devolución registrada conserva el límite aunque cierre su PR y abra
+otro. Las reejecuciones de workflows históricos quedan fuera de este cambio,
+según el alcance acordado.
 
 ## Lotes, costo y reversión
 
