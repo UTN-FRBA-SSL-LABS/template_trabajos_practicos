@@ -2,8 +2,9 @@
 
 ## Estado de la implementación
 
-Esta versión se prepara para el template y los repositorios activos de 2026 de
-las comisiones 001, 051, 251 y 053. El curso 052 queda expresamente excluido.
+El circuito se hereda al crear un repositorio desde este template. El workflow
+no filtra por año, comisión, organización, nombre ni sufijo del repositorio.
+La selección de cursos corresponde al proceso de creación o distribución.
 Se reutiliza el secreto ANTHROPIC_API_KEY existente. No se deben ejecutar los scripts antiguos
 `sync_student_workflows.sh` ni `restore_branch_protection.sh` para este cambio:
 no contemplan el nuevo circuito ni la preservación selectiva de configuraciones.
@@ -70,8 +71,9 @@ informativa redundante de todos ellos. La calidad se aplica al TP entregado.
 
 ## Instalación y configuración
 
-El circuito queda activo por defecto al estar en `main` de un repositorio
-incluido en el filtro. No requiere una fecha ni una variable de activación.
+El circuito queda activo por defecto al estar en `main` de un repositorio de
+entregas. No requiere una fecha, una variable de activación ni registrar su nombre
+en una lista del workflow.
 
 1. Conservar **`ANTHROPIC_API_KEY`** donde ya está configurado. No se necesita
    recuperar su valor, crear otra clave ni trasladarla a un environment.
@@ -92,9 +94,12 @@ repositorio. Se conserva el modelo de confianza indicado por el usuario.
 
 En un repositorio nuevo creado desde el template, asegurar que Actions esté
 habilitado y que ANTHROPIC_API_KEY esté disponible para ese repositorio. La clave
-no se copia con los archivos del template. El filtro actual cubre únicamente
-2026 y las cuatro comisiones indicadas; excluye 052, los sufijos `-1C` y el propio
-template, cuyos PR son de mantenimiento.
+no se copia con los archivos del template. Los repositorios nuevos heredan el
+workflow también en futuros años o comisiones, sin modificar su código.
+La única exclusión de repositorio usa la propiedad genérica `is_template` de
+GitHub: los repositorios marcados como template se usan para mantenimiento,
+mientras que las copias de entrega ejecutan el circuito. No se consulta el nombre
+del template de origen ni se requiere un registro adicional de cada copia.
 
 ## Reevaluación manual
 

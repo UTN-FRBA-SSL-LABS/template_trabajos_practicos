@@ -8,7 +8,12 @@ esa rama la lógica docente que controla la entrega. La rama local de desarrollo
 `codex/validacion-local-llm-unico` no activa por sí sola ningún repositorio.
 
 La distribución a estudiantes está pendiente y requiere una orden posterior.
-El alcance verificado el 28 de septiembre de 2026 es:
+El workflow es común a todos los repositorios creados desde este template y no
+contiene filtros de cursos, año u organización. La elección de quién recibe
+el template se hace en el proceso de creación o distribución.
+
+El siguiente alcance corresponde únicamente al lote de repositorios existentes
+verificado el 28 de septiembre de 2026, no a una restricción del workflow:
 
 | Comisión | Repositorios | Cantidad |
 | --- | --- | ---: |
@@ -18,8 +23,9 @@ El alcance verificado el 28 de septiembre de 2026 es:
 | 053 | 26-053-01 a 26-053-17 | 17 |
 | **Total de estudiantes** | | **72** |
 
-El curso **052 queda fuera**, porque no utiliza este template de laboratorio.
-También quedan fuera los repositorios archivados y los nombres con sufijo -1C.
+El curso **052 queda fuera de este lote**, porque no utiliza este template de
+laboratorio. También quedan fuera del lote los repositorios archivados y los
+nombres con sufijo -1C.
 Confirmar nombre e ID de cada repositorio contra el manifiesto antes de escribir.
 
 ## Secuencia propuesta por repositorio

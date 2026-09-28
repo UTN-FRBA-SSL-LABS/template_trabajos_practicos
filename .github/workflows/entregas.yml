@@ -22,12 +22,9 @@ permissions: {}
 jobs:
   gate:
     name: Verificación previa
-    if: >-
-      ${{ !endsWith(github.repository, '-1C') &&
-      (startsWith(github.repository, 'utn-frba-ssl/26-001-') ||
-       startsWith(github.repository, 'utn-frba-ssl/26-051-') ||
-       startsWith(github.repository, 'utn-frba-ssl/26-251-') ||
-       startsWith(github.repository, 'utn-frba-ssl/26-053-')) }}
+    # Every repository created from this template inherits the delivery policy.
+    # Template repositories themselves contain maintenance PRs, not submissions.
+    if: github.event.repository.is_template != true
     runs-on: ubuntu-latest
     timeout-minutes: 3
     permissions:
