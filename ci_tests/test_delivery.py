@@ -1,4 +1,6 @@
 import copy
+from contextlib import redirect_stdout
+from io import StringIO
 import json
 import os
 from pathlib import Path
@@ -267,9 +269,13 @@ class ReviewTests(unittest.TestCase):
         def fail(state):
             self.assertIsNotNone(self.ledger.state)
             raise RuntimeError("GitHub comments unavailable")
-        with self.assertRaises(RuntimeError):
-            self.run_review(publish=fail)
-        self.run_review(generation="101")
+        logs = StringIO()
+        with redirect_stdout(logs):
+            with self.assertRaises(RuntimeError):
+                self.run_review(publish=fail)
+            self.run_review(generation="101")
+        self.assertIn("informe guardado. Publicando el comentario.", logs.getvalue())
+        self.assertIn("reutilizando el informe guardado", logs.getvalue())
         self.assertEqual(self.calls, 1)
     def test_manual_dispatch_once_even_on_rerun_and_history_preserved(self):
         self.run_review()
@@ -292,21 +298,37 @@ class ReviewTests(unittest.TestCase):
                 review_state.is_codeowner(complex_policy, "Teacher")
     def test_model_response_must_be_complete_and_nonempty_no_retry(self):
         calls = []
-        response = types.SimpleNamespace(stop_reason="end_turn", content=[types.SimpleNamespace(type="text", text="Complete")],
-                                         usage=types.SimpleNamespace(input_tokens=1, output_tokens=2))
+        report = "Texto privado del informe"
+        prompt = "Texto privado de la entrega"
+        response = types.SimpleNamespace(
+            stop_reason="end_turn",
+            content=[types.SimpleNamespace(type="text", text=report)],
+            usage=types.SimpleNamespace(input_tokens=1, output_tokens=2),
+        )
         def create(**kwargs):
             calls.append(kwargs)
             return response
         client = types.SimpleNamespace(messages=types.SimpleNamespace(create=create))
-        self.assertEqual(llm_review.generate_report("prompt", client)[0], "Complete")
-        response.stop_reason = "max_tokens"
-        with self.assertRaises(ValueError):
-            llm_review.generate_report("prompt", client)
-        response.stop_reason = "end_turn"
-        response.content[0].text = " "
-        with self.assertRaises(ValueError):
-            llm_review.generate_report("prompt", client)
+        logs = StringIO()
+        with redirect_stdout(logs):
+            self.assertEqual(llm_review.generate_report(prompt, client)[0], report)
+            response.stop_reason = "max_tokens"
+            with self.assertRaises(ValueError):
+                llm_review.generate_report(prompt, client)
+            response.stop_reason = "end_turn"
+            response.content[0].text = " "
+            with self.assertRaises(ValueError):
+                llm_review.generate_report(prompt, client)
         self.assertEqual(len(calls), 3)
+        self.assertEqual(calls[0]["model"], "claude-sonnet-5-5")
+        self.assertEqual(calls[0]["thinking"], {"type": "between_tools"})
+        self.assertEqual(calls[0]["max_tokens"], 5500)
+        output = logs.getvalue()
+        self.assertIn("stop_reason=max_tokens, input_tokens=1, output_tokens=2", output)
+        self.assertIn("respuesta incompleta descartada antes de guardar", output)
+        self.assertIn("respuesta vacía descartada antes de guardar", output)
+        self.assertNotIn(prompt, output)
+        self.assertNotIn(report, output)
     def test_notice_links_original_pr_and_tested_sha(self):
         self.run_review()
         gh = types.SimpleNamespace(repo="org/repo", comment=lambda pr, text: self.published.append(text))

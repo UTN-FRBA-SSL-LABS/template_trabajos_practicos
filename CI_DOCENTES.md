@@ -143,6 +143,30 @@ Un timeout o caída anterior al guardado duradero no consume la devolución. Si
 el proveedor llegó a procesar una llamada que acabó en timeout, puede cobrarla:
 permitir reintentos incompletos no garantiza un único cargo del proveedor.
 
+## Diagnóstico de la devolución LLM
+
+En Actions, abrir el intento correspondiente y el paso **Evaluar o recuperar
+devolución guardada**. El log registra la consulta al registro, la solicitud a
+Claude, el guardado y la publicación. Si aparece un commit más nuevo, el
+intento termina antes de llamar al modelo. Si la verificación previa encuentra
+un informe guardado, deja constancia de la recuperación en su propio log.
+
+- `stop_reason=max_tokens` indica que se alcanzó el límite de salida.
+  `stop_reason=end_turn` seguido del aviso de respuesta vacía indica que Claude
+  terminó sin texto para guardar. Ambos casos permiten reintentar la devolución.
+- **Informe guardado** seguido de un error indica que el informe ya está en
+  `ssl-evaluaciones` y se puede recuperar al reintentar la publicación.
+- El log registra el modelo, el límite, el motivo de finalización y los tokens
+  de entrada y salida. El prompt, la respuesta y los mensajes de error del
+  proveedor quedan fuera del log.
+
+El modelo es `claude-sonnet-5-5`. Se usa `between_tools` para conservar el modo
+sin razonamiento previo de Sonnet 4.6. El límite de salida es de 5.500 tokens
+para compensar el cambio de tokenizador. La
+[guía de migración de Claude](https://platform.claude.com/docs/en/models/sonnet-5-5/migration-guide)
+documenta la configuración y las [tarifas de la API](https://platform.claude.com/docs/en/about-claude/pricing)
+permiten estimar el costo a partir del consumo registrado.
+
 ## Validación local, sin gastos de proveedor ni de Actions
 
 ```sh

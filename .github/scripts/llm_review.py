@@ -22,8 +22,13 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 # Configuración
 # ---------------------------------------------------------------------------
-MODEL = "claude-sonnet-4-6"
-MAX_TOKENS_OUTPUT = 4096
+MODEL = "claude-sonnet-5-5"
+# The newer tokenizer uses more tokens for the same text.
+MAX_TOKENS_OUTPUT = 5500
+STOP_REASONS = {
+    "end_turn", "max_tokens", "model_context_window_exceeded", "pause_turn",
+    "refusal", "stop_sequence", "tool_use",
+}
 
 # Límites de truncado para evitar prompts excesivamente costosos
 MAX_FILE_LINES = 500          # líneas máximas por archivo individual
@@ -314,6 +319,7 @@ def build_prompt(tp_dir: str, rubric: str, source_files: dict,
 
 def generate_report(prompt, client=None):
     """One request, no SDK retries, hard wall-clock deadline including response parsing."""
+    print(f"Devolución LLM: solicitando informe a {MODEL} (max_tokens={MAX_TOKENS_OUTPUT}).", flush=True)
     if client is None:
         import anthropic
         client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"],
@@ -323,14 +329,26 @@ def generate_report(prompt, client=None):
     previous = signal.signal(signal.SIGALRM, expired)
     signal.alarm(180)
     try:
-        response = client.messages.create(model=MODEL, max_tokens=MAX_TOKENS_OUTPUT,
-                                          messages=[{"role": "user", "content": prompt}])
-        if response.stop_reason != "end_turn":
-            raise ValueError(f"Respuesta incompleta ({response.stop_reason}); no consume la devolución.")
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=MAX_TOKENS_OUTPUT,
+            thinking={"type": "between_tools"},
+            messages=[{"role": "user", "content": prompt}],
+        )
+        stop_reason = response.stop_reason if response.stop_reason in STOP_REASONS else "unknown"
+        usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
+        print(
+            f"Devolución LLM: respuesta recibida (stop_reason={stop_reason}, "
+            f"input_tokens={usage['input_tokens']}, output_tokens={usage['output_tokens']}).",
+            flush=True,
+        )
+        if stop_reason != "end_turn":
+            print("Devolución LLM: respuesta incompleta descartada antes de guardar.", flush=True)
+            raise ValueError(f"Respuesta incompleta ({stop_reason}).")
         text = "\n".join(block.text for block in response.content if block.type == "text").strip()
         if not text:
-            raise ValueError("Respuesta vacía; no consume la devolución.")
-        usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
+            print("Devolución LLM: respuesta vacía descartada antes de guardar.", flush=True)
+            raise ValueError("Respuesta vacía.")
         return text, usage
     finally:
         signal.alarm(0)
@@ -339,19 +357,24 @@ def generate_report(prompt, client=None):
 
 def review_once(ledger, branch, pr, head, generation, force, generate, publish):
     from review_state import report_record
+    print("Devolución LLM: consultando el registro de la rama.", flush=True)
     state = ledger.read(branch)
     if state and (not force or any(r["id"] == generation for r in state["reports"])):
+        print("Devolución LLM: reutilizando el informe guardado y publicando su comentario.", flush=True)
         publish(state)
         return "reused"
     report, usage = generate()
     record = report_record(branch, pr, head, report, generation, usage=usage, model=MODEL, manual=force)
+    print("Devolución LLM: guardando el informe completo.", flush=True)
     state = ledger.save(branch, record)
     # Save first. A comment/API error must never cause another paid call on retry.
+    print("Devolución LLM: informe guardado. Publicando el comentario.", flush=True)
     publish(state)
     return "generated"
 
 
 def main():
+    print("Devolución LLM: verificando el PR y la constancia.", flush=True)
     from local_receipt import blob, validate
     from review_state import GitHub, Ledger, is_codeowner, publish_saved, validate_branch
     from submission_gate import fetch_shas
@@ -380,6 +403,7 @@ def main():
     os.environ["BASE_SHA"] = base
     rubric = Path(f".github/rubrics/{tp.lower()}_rubric.md").read_text()
     def generate():
+        print("Devolución LLM: preparando el contexto de la revisión.", flush=True)
         prompt = build_prompt(tp, rubric, collect_source_files(tp), collect_readme(tp),
                               collect_git_stats(base, head, tp, load_excluded_authors()), collect_quality_report())
         return generate_report(prompt)
@@ -392,6 +416,10 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as error:
-        # Exception bodies from providers can contain submitted data; keep logs concise.
-        print(f"El job no finalizó: {type(error).__name__}. Una devolución ya guardada no se vuelve a generar al reintentar.")
+        # Provider exception messages can contain submitted data.
+        print(
+            f"Devolución LLM: fallo ({type(error).__name__}). Revisar la última etapa registrada.",
+            file=sys.stderr,
+            flush=True,
+        )
         raise SystemExit(1)

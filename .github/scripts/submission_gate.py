@@ -82,6 +82,7 @@ def main():
     ledger = Ledger(gh)
     state = ledger.read(branch)
     if state:
+        print(f"Verificación previa: devolución guardada para {branch}. Publicando su referencia.", flush=True)
         publish_saved(gh, branch, pr_number, state)
     try:
         validate_paths(branch, base, head)
